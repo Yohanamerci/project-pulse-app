@@ -1,8 +1,9 @@
 package edu.tcu.cs.projectpulse.system;
 
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetSequenceKey;
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import edu.tcu.cs.projectpulse.auth.JwtProvider;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -71,8 +72,10 @@ public class SecurityConfig {
     public JwtEncoder jwtEncoder() {
         SecretKey key = new SecretKeySpec(
                 secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        OctetSequenceKey octetKey = new OctetSequenceKey.Builder(key).build();
-        return new NimbusJwtEncoder(new ImmutableSecret<>(octetKey));
+        OctetSequenceKey octetKey = new OctetSequenceKey.Builder(key)
+                .algorithm(JWSAlgorithm.HS256)
+                .build();
+        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(octetKey)));
     }
 
     @Bean

@@ -133,7 +133,7 @@ INSERT INTO users (username, email, password, first_name, last_name, role)
 VALUES (
     'admin',
     'admin@projectpulse.local',
-    '$2a$12$pWkBbNmMcbJCgkQFgTW0cO9QHe9Zv6u3zTgYpSk7zBz3bRLAEiPoe',
+    '$2b$12$rFV7zYTXBrRHol2mJ9DYHOp4nJGA6E8m6wW05zPrfGskhLLYCuweK',
     'System',
     'Admin',
     'ADMIN'

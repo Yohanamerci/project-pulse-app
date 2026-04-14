@@ -22,37 +22,32 @@ const router = createRouter({
     {
       path: '/activities',
       name: 'activities',
-      // TODO: implement ActivitiesPage.vue
-      component: () => import('@/pages/DashboardPage.vue'),
-      meta: { requiresAuth: true, roles: ['ADMIN', 'INSTRUCTOR', 'STUDENT'] },
+      component: () => import('@/pages/ActivitiesPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/evaluations',
       name: 'evaluations',
-      // TODO: implement EvaluationsPage.vue
-      component: () => import('@/pages/DashboardPage.vue'),
-      meta: { requiresAuth: true, roles: ['ADMIN', 'INSTRUCTOR', 'STUDENT'] },
+      component: () => import('@/pages/EvaluationsPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/teams',
       name: 'teams',
-      // TODO: implement TeamsPage.vue
-      component: () => import('@/pages/DashboardPage.vue'),
-      meta: { requiresAuth: true, roles: ['ADMIN', 'INSTRUCTOR'] },
+      component: () => import('@/pages/TeamsPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/sections',
       name: 'sections',
-      // TODO: implement SectionsPage.vue
-      component: () => import('@/pages/DashboardPage.vue'),
-      meta: { requiresAuth: true, roles: ['ADMIN'] },
+      component: () => import('@/pages/SectionsPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/users',
       name: 'users',
-      // TODO: implement UsersPage.vue
-      component: () => import('@/pages/DashboardPage.vue'),
-      meta: { requiresAuth: true, roles: ['ADMIN'] },
+      component: () => import('@/pages/UsersPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/:pathMatch(.*)*',

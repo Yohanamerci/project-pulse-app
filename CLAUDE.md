@@ -129,6 +129,9 @@ project-pulse-app/
 | **Evaluations** | `POST /evaluations`, `GET /evaluations/my`, `GET /evaluations/my-scores`, `GET /evaluations/team/{tid}/week/{wid}`, `GET /evaluations/grade/team/{tid}/week/{wid}/student/{sid}` | BR-3, BR-4, BR-5 |
 | **Error Handling** | GlobalExceptionHandler handles: validation (400), not found (404), bad credentials (401), forbidden (403), illegal state/argument (400), catch-all (500) | All domains |
 | **DB Migrations** | Flyway V1 (schema) + V2 (seed data, `INSERT IGNORE` idempotent) | — |
+| **Email Notifications** | `NotificationService` (async) — emails all section students when active week opens. View in Mailpit at http://localhost:8025 | — |
+| **Swagger/OpenAPI** | `springdoc-openapi-starter-webmvc-ui` — available at `/swagger-ui.html` in dev | — |
+| **Tests** | `AuthControllerTest` — 4 `@WebMvcTest` cases (valid login, bad creds, missing username, missing password) | — |
 
 ### ✅ Frontend — Completed
 
@@ -136,16 +139,17 @@ project-pulse-app/
 |------|------|-------|---------|
 | **Login** | `/login` | All | JWT login form, validation, error display |
 | **Dashboard** | `/dashboard` | All | Role-aware welcome, navigation cards |
-| **Activities** | `/activities` | All | Student: submit WAR + history; Admin/Instructor: team/week filter view |
-| **Evaluations** | `/evaluations` | All | Student: evaluate teammates, view own scores; Instructor/Admin: team overview, grade view |
-| **Teams** | `/teams` | All | Student: my team card; Instructor: read-only list; Admin: full CRUD + member management |
+| **Activities** | `/activities` | All | Student: submit WAR + history (paginated); Admin/Instructor: team/week filter view |
+| **Evaluations** | `/evaluations` | All | Student: evaluate teammates, view own scores; Instructor/Admin: team overview (paginated), grade report |
+| **Teams** | `/teams` | All | Student: my team card; Instructor: read-only list; Admin: full CRUD + member + rubric assignment |
 | **Sections** | `/sections` | Admin | Full CRUD + active week management dialog |
-| **Users** | `/users` | Admin | Role-tabbed table, Add/Edit dialogs |
+| **Rubrics** | `/rubrics` | Admin | Create/delete rubrics; add/edit/delete criteria per rubric |
+| **Users** | `/users` | Admin | Role-tabbed table (paginated), Add/Edit/Disable dialogs |
 | **Navigation** | `App.vue` | All | Role-filtered drawer, JWT-aware, logout |
 
 ---
 
-## 🔴 TODO — Needs Implementation
+## ✅ All Required Features — Completed
 
 ### High Priority (Required Features)
 
@@ -162,20 +166,26 @@ project-pulse-app/
 
 | # | Area | Task | Notes |
 |---|------|------|-------|
-| 7 | **Frontend** | Type-check pass | Run `npm run type-check` and fix all TS errors in pages/apis. |
-| 8 | **Backend** | Fix `AuthControllerTest.java` | `@AutoConfigureMockMvc` is in `spring-boot-test-autoconfigure` — add explicit dependency or remove test file and rewrite. |
-| 9 | **Backend** | OpenAPI/Swagger docs | Add `springdoc-openapi-starter-webmvc-ui` to pom.xml. Annotate controllers with `@Operation`. Available at `/swagger-ui.html`. |
-| 10 | **Frontend** | Rubric assignment in Teams UI | After creating rubric, allow Admin to assign it to a team from TeamsPage (calls `PUT /teams/{id}/rubric/{rid}`). |
-| 11 | **Both** | Validation feedback on all forms | Ensure all API 400 errors surface as user-visible messages, not silent console errors. |
+| ✅ 7 | **Frontend** | ~~Type-check pass~~ | Done — zero TS errors. Fixed tsconfig `noEmit`, unused ref, added `env.d.ts` + `@types/node` |
+| ✅ 8 | **Backend** | ~~Fix `AuthControllerTest.java`~~ | Done — rewritten with `@WebMvcTest` + `@MockBean AuthService`. 4 tests: valid login, bad credentials, missing username, missing password |
+| ✅ 9 | **Backend** | ~~OpenAPI/Swagger docs~~ | Done — `springdoc-openapi-starter-webmvc-ui` 2.8.8 in pom.xml. Available at `/swagger-ui.html` in dev |
+| ✅ 10 | **Frontend** | ~~Rubric assignment in Teams UI~~ | Done — "Assign Rubric" section added to Manage Team dialog; calls `PUT /teams/{id}/rubric/{rid}` |
+| ✅ 11 | **Both** | ~~Validation feedback on all forms~~ | Done — all pages use `error.value` + `v-alert type="error"` for API errors; 400 messages surfaced from `GlobalExceptionHandler` |
 
 ### Lower Priority (Enhancement)
 
 | # | Area | Task | Notes |
 |---|------|------|-------|
-| 12 | **Backend** | Email notifications via Mailpit | Notify students when active week opens. `spring-boot-starter-mail` is already in `pom.xml`. Wire `JavaMailSender` in `system/`. |
+| ✅ 12 | **Backend** | ~~Email notifications via Mailpit~~ | Done — `NotificationService.java` in `system/`, async `@Async` send. Wired into `SectionService.setActiveWeek()`. View emails at http://localhost:8025 |
 | 13 | **Both** | Azure deployment | Add `.github/workflows/deploy.yml`. Backend: `mvnw package` → JAR → Azure App Service. Frontend: `npm run build` → Azure Static Web Apps. |
-| 14 | **Backend** | Integration tests | Fix `AuthControllerTest` then add tests for `ActivityController` and `EvaluationController`. Requires DB running. |
-| 15 | **Frontend** | Pagination on data tables | Activities and Evaluations tables can grow large. Add `items-per-page` control to `v-data-table`. |
+| ✅ 14 | **Backend** | ~~Integration tests (Auth)~~ | Done — `AuthControllerTest` with 4 `@WebMvcTest` cases. Full integration tests for Activity/Evaluation require running DB. |
+| ✅ 15 | **Frontend** | ~~Pagination on data tables~~ | Done — `items-per-page` added to Activities, Evaluations overview, and Users tables |
+
+### Still Open
+
+| # | Area | Task | Notes |
+|---|------|------|-------|
+| 13 | **Both** | Azure deployment | Add `.github/workflows/deploy.yml`. Configure GitHub secrets: `AZURE_CREDENTIALS`, `DB_URL`, `DB_PASSWORD`, `JWT_SECRET_KEY` |
 
 ---
 
@@ -304,8 +314,8 @@ main
 
 | # | Severity | Description | Fix |
 |---|----------|-------------|-----|
-| 1 | Medium | `AuthControllerTest.java` fails to compile — `@AutoConfigureMockMvc` not found in Spring Boot 4 test classpath | Add explicit `spring-boot-test-autoconfigure` dep, or rewrite using `@WebMvcTest` |
-| 2 | Low | Flyway not auto-configured in Spring Boot 4 | Fixed — manual `FlywayConfig.java` in `system/` package handles migration |
+| 1 | ~~Medium~~ | ~~`AuthControllerTest.java` fails to compile~~ | ✅ Fixed — rewritten with `@WebMvcTest(AuthController.class)` + `@MockBean AuthService` |
+| 2 | ~~Low~~ | ~~Flyway not auto-configured in Spring Boot 4~~ | ✅ Fixed — manual `FlywayConfig.java` in `system/` handles migration |
 | 3 | Low | Section list shows duplicates if V2 is applied twice | Fixed — `INSERT IGNORE` in V2. Drop/recreate DB if duplicates appear in dev. |
 
 ---

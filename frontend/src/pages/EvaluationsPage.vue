@@ -503,6 +503,8 @@ watch(selectedWeekId, () => {
             loading-text="Loading evaluations..."
             no-data-text="Select a team and week to view evaluations."
             item-value="id"
+            :items-per-page="10"
+            :items-per-page-options="[10, 25, 50, { value: -1, title: 'All' }]"
           >
             <template #item.submittedAt="{ item }">
               {{ formatDate(item.submittedAt) }}

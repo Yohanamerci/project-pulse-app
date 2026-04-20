@@ -1,6 +1,9 @@
 package edu.tcu.cs.projectpulse.section;
 
 import edu.tcu.cs.projectpulse.section.dto.*;
+import edu.tcu.cs.projectpulse.system.NotificationService;
+import edu.tcu.cs.projectpulse.team.Team;
+import edu.tcu.cs.projectpulse.user.User;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,11 +16,14 @@ public class SectionService {
 
     private final SectionRepository sectionRepository;
     private final ActiveWeekRepository activeWeekRepository;
+    private final NotificationService notificationService;
 
     public SectionService(SectionRepository sectionRepository,
-                          ActiveWeekRepository activeWeekRepository) {
+                          ActiveWeekRepository activeWeekRepository,
+                          NotificationService notificationService) {
         this.sectionRepository = sectionRepository;
         this.activeWeekRepository = activeWeekRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +91,18 @@ public class SectionService {
         activeWeek.setEndDate(req.endDate());
         activeWeek.setActive(true);
 
-        return ActiveWeekDto.from(activeWeekRepository.save(activeWeek));
+        ActiveWeekDto result = ActiveWeekDto.from(activeWeekRepository.save(activeWeek));
+
+        // Notify all students in this section (async — never blocks the response)
+        List<String> studentEmails = section.getTeams().stream()
+                .flatMap(team -> team.getStudents().stream())
+                .map(User::getEmail)
+                .distinct()
+                .toList();
+        notificationService.notifyActiveWeekOpened(
+                section.getName(), weekNum, req.startDate(), req.endDate(), studentEmails);
+
+        return result;
     }
 
     @Transactional(readOnly = true)

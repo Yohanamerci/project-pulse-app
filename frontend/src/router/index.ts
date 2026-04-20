@@ -50,6 +50,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/rubrics',
+      name: 'rubrics',
+      component: () => import('@/pages/RubricsPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard',
     },

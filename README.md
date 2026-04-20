@@ -48,33 +48,47 @@ project-pulse-app/
 - Node.js 20+
 - Docker Desktop
 
-### Backend
-
-```bash
-cd backend
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-```
-
-Runs on **http://localhost:8080**
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Runs on **http://localhost:5173**
-
-### Database (Docker)
+### 1. Start the Database
 
 ```bash
 docker compose up -d mysql mailpit
 ```
 
-- MySQL: `localhost:3306` — DB: `project_pulse`, user: `root`, pass: `secret`
+- MySQL: `localhost:3307` — DB: `project_pulse`, user: `root`, pass: `secret`
 - Mailpit (email testing): `http://localhost:8025`
+
+### 2. Start the Backend
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev -Dmaven.test.skip=true
+```
+
+Runs on **http://localhost:8080** — Flyway automatically creates the schema and loads seed data on first run.
+
+### 3. Start the Frontend
+
+```bash
+cd frontend
+npm install   # first time only
+npm run dev
+```
+
+Runs on **http://localhost:5173**
+
+---
+
+## Test Login Credentials
+
+Use these accounts to test each role after starting the app:
+
+| Role | Username | Password | What you can do |
+|------|----------|----------|-----------------|
+| **Admin** | `admin` | `Admin1234!` | Manage users, sections, teams, rubrics |
+| **Instructor** | `dr.wei` | `Password1!` | View teams, evaluations, grade reports |
+| **Student** | `alice.j` | `Password1!` | Submit WARs, evaluate teammates, view scores |
+
+> All other student/instructor accounts also use `Password1!` — see [CLAUDE.md](CLAUDE.md) for the full list.
 
 ---
 

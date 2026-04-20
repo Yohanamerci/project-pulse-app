@@ -16,10 +16,6 @@ spring:
     show-sql: false
     open-in-view: false
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
 
   mail:
     host: ${MAIL_HOST:localhost}
@@ -43,3 +39,4 @@ server:
 logging:
   level:
     edu.tcu.cs.projectpulse: INFO
+    org.flywaydb: INFO

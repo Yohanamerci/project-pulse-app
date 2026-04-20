@@ -50,6 +50,12 @@ public class GlobalExceptionHandler {
         return Result.error(StatusCode.INVALID_ARGUMENT, ex.getMessage());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleIllegalArgument(IllegalArgumentException ex) {
+        return Result.error(StatusCode.INVALID_ARGUMENT, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleGeneral(Exception ex) {

@@ -36,6 +36,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@org.springframework.scheduling.annotation.EnableAsync
 public class SecurityConfig {
 
     @Value("${security.jwt.secret-key}")

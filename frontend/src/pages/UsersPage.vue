@@ -205,6 +205,8 @@ onMounted(loadUsers)
         :headers="headers"
         :items="filteredUsers"
         :loading="loading"
+        :items-per-page="15"
+        :items-per-page-options="[15, 30, 50, { value: -1, title: 'All' }]"
         loading-text="Loading users..."
         no-data-text="No users found."
         item-value="id"

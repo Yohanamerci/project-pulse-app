@@ -191,6 +191,8 @@ onMounted(loadActivities)
         loading-text="Loading activities..."
         no-data-text="No activities found."
         item-value="id"
+        :items-per-page="10"
+        :items-per-page-options="[10, 25, 50, { value: -1, title: 'All' }]"
       >
         <template #item.category="{ item }">
           <v-chip

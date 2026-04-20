@@ -8,6 +8,7 @@ import {
   addStudent,
   removeStudent,
   assignInstructor,
+  assignRubric,
   deleteTeam,
   type TeamDto,
 } from '@/apis/teams'
@@ -115,11 +116,14 @@ const selectedStudentId = ref<number | null>(null)
 const assigningInstructor = ref(false)
 const addingStudent = ref(false)
 const removingStudentId = ref<number | null>(null)
+const selectedRubricId = ref<number | null>(null)
+const assigningRubric = ref(false)
 
 function openManageDialog(team: TeamDto) {
   managedTeam.value = { ...team, students: [...team.students], instructors: [...team.instructors] }
   selectedInstructorId.value = null
   selectedStudentId.value = null
+  selectedRubricId.value = team.rubricId
   manageDialog.value = true
 }
 
@@ -154,6 +158,22 @@ async function handleAddStudent() {
     error.value = e instanceof Error ? e.message : 'Failed to add student.'
   } finally {
     addingStudent.value = false
+  }
+}
+
+async function handleAssignRubric() {
+  if (!managedTeam.value || !selectedRubricId.value) return
+  assigningRubric.value = true
+  try {
+    const updated = await assignRubric(managedTeam.value.id, selectedRubricId.value)
+    managedTeam.value = { ...updated, students: updated.students, instructors: updated.instructors }
+    snackbarMessage.value = 'Rubric assigned!'
+    snackbar.value = true
+    await loadTeams()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to assign rubric.'
+  } finally {
+    assigningRubric.value = false
   }
 }
 
@@ -599,6 +619,48 @@ onMounted(async () => {
             >
               No instructors yet
             </span>
+          </div>
+
+          <v-divider class="mb-4" />
+
+          <!-- Assign Rubric -->
+          <p class="text-subtitle-2 font-weight-bold mb-3">
+            <v-icon icon="mdi-clipboard-list" size="16" class="mr-1" />
+            Assign Rubric
+          </p>
+          <v-row align="center" class="mb-4">
+            <v-col>
+              <v-select
+                v-model="selectedRubricId"
+                :items="rubricItems"
+                label="Select Rubric"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="auto">
+              <v-btn
+                color="success"
+                variant="tonal"
+                :loading="assigningRubric"
+                :disabled="!selectedRubricId"
+                @click="handleAssignRubric"
+              >
+                Assign
+              </v-btn>
+            </v-col>
+          </v-row>
+          <div class="mb-4">
+            <v-chip
+              v-if="managedTeam.rubricName"
+              color="success"
+              size="small"
+              prepend-icon="mdi-clipboard-check"
+            >
+              {{ managedTeam.rubricName }}
+            </v-chip>
+            <span v-else class="text-body-2 text-medium-emphasis">No rubric assigned</span>
           </div>
 
           <v-divider class="mb-4" />

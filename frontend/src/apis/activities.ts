@@ -86,3 +86,8 @@ export async function getAllActivities(): Promise<ActivityDto[]> {
   const response = await request.get<ApiResponse<ActivityDto[]>>('/activities')
   return response.data.data
 }
+
+export async function getStudentActivities(studentId: number): Promise<ActivityDto[]> {
+  const response = await request.get<ApiResponse<ActivityDto[]>>(`/activities/student/${studentId}`)
+  return response.data.data
+}

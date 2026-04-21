@@ -13,7 +13,10 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -107,6 +110,47 @@ public class EvaluationService {
     public List<EvaluationDto> findByTeamAndWeek(Long teamId, Long weekId) {
         return peerEvaluationRepository.findByTeamIdAndWeekId(teamId, weekId)
                 .stream().map(EvaluationDto::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GradeDto> findGradesByStudent(Long studentId) {
+        User evaluatee = userRepository.findById(studentId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + studentId));
+
+        List<PeerEvaluation> evals = peerEvaluationRepository.findByEvaluateeId(studentId);
+
+        Map<Long, List<PeerEvaluation>> byWeek = evals.stream()
+                .collect(Collectors.groupingBy(e -> e.getWeek().getId()));
+
+        return byWeek.entrySet().stream().map(entry -> {
+            List<PeerEvaluation> weekEvals = entry.getValue();
+            List<EvaluationDto> evalDtos = weekEvals.stream().map(EvaluationDto::from).toList();
+
+            ActiveWeek week = weekEvals.get(0).getWeek();
+            Team team = weekEvals.get(0).getTeam();
+
+            int maxPossibleScore = 0;
+            if (team != null && team.getRubric() != null && team.getRubric().getCriteria() != null) {
+                maxPossibleScore = team.getRubric().getCriteria().stream()
+                        .mapToInt(c -> c.getMaxScore() != null ? c.getMaxScore() : 0)
+                        .sum();
+            }
+
+            double averageScore = evalDtos.isEmpty()
+                    ? 0.0
+                    : evalDtos.stream().mapToInt(EvaluationDto::totalScore).sum()
+                      / (double) evalDtos.size();
+
+            return new GradeDto(
+                    evaluatee.getId(),
+                    evaluatee.getFullName(),
+                    week.getId(),
+                    week.getWeekNumber(),
+                    averageScore,
+                    maxPossibleScore,
+                    evalDtos
+            );
+        }).sorted(Comparator.comparing(GradeDto::weekNumber)).toList();
     }
 
     @Transactional(readOnly = true)

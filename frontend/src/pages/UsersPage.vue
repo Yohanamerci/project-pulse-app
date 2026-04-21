@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getUsers, createUser, updateUser, type UserDto } from '@/apis/users'
+import { getTeams, type TeamDto } from '@/apis/teams'
+import { getStudentActivities, type ActivityDto } from '@/apis/activities'
+import { getStudentGrades, type GradeDto } from '@/apis/evaluations'
 
 const users = ref<UserDto[]>([])
 const loading = ref(false)
@@ -128,6 +131,41 @@ async function handleUpdateUser() {
   }
 }
 
+// View User dialog
+const viewDialog = ref(false)
+const viewingUser = ref<UserDto | null>(null)
+const viewLoading = ref(false)
+const viewTeam = ref<TeamDto | null>(null)
+const viewActivities = ref<ActivityDto[]>([])
+const viewGrades = ref<GradeDto[]>([])
+
+async function openViewDialog(user: UserDto) {
+  viewingUser.value = user
+  viewTeam.value = null
+  viewActivities.value = []
+  viewGrades.value = []
+  viewDialog.value = true
+  viewLoading.value = true
+  try {
+    const allTeams = await getTeams()
+    if (user.role === 'STUDENT') {
+      viewTeam.value = allTeams.find((t) => t.students.some((s) => s.id === user.id)) ?? null
+      const [acts, grades] = await Promise.all([
+        getStudentActivities(user.id),
+        getStudentGrades(user.id),
+      ])
+      viewActivities.value = acts
+      viewGrades.value = grades
+    } else if (user.role === 'INSTRUCTOR') {
+      viewTeam.value = allTeams.find((t) => t.instructors.some((i) => i.id === user.id)) ?? null
+    }
+  } catch {
+    // silently fail — dialog still shows basic info
+  } finally {
+    viewLoading.value = false
+  }
+}
+
 async function loadUsers() {
   loading.value = true
   error.value = null
@@ -229,6 +267,14 @@ onMounted(loadUsers)
         </template>
 
         <template #item.actions="{ item }">
+          <v-btn
+            v-if="item.role === 'STUDENT' || item.role === 'INSTRUCTOR'"
+            icon="mdi-eye"
+            variant="text"
+            size="small"
+            color="secondary"
+            @click="openViewDialog(item)"
+          />
           <v-btn
             icon="mdi-pencil"
             variant="text"
@@ -383,6 +429,121 @@ onMounted(loadUsers)
           >
             Save Changes
           </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- View User Dialog -->
+    <v-dialog v-model="viewDialog" max-width="680" scrollable>
+      <v-card v-if="viewingUser" rounded="lg">
+        <v-card-title class="pa-6 pb-4 d-flex align-center ga-2">
+          <v-icon icon="mdi-account-details" :color="roleColors[viewingUser.role]" />
+          {{ viewingUser.firstName }} {{ viewingUser.lastName }}
+          <v-chip :color="roleColors[viewingUser.role]" size="small" label class="ml-2">
+            {{ viewingUser.role }}
+          </v-chip>
+        </v-card-title>
+        <v-divider />
+
+        <v-card-text class="pa-6">
+          <v-progress-linear v-if="viewLoading" indeterminate color="primary" class="mb-4" />
+
+          <!-- Basic info -->
+          <v-row dense class="mb-4">
+            <v-col cols="6">
+              <div class="text-caption text-medium-emphasis">Username</div>
+              <div>@{{ viewingUser.username }}</div>
+            </v-col>
+            <v-col cols="6">
+              <div class="text-caption text-medium-emphasis">Email</div>
+              <div>{{ viewingUser.email }}</div>
+            </v-col>
+            <v-col cols="6" class="mt-2">
+              <div class="text-caption text-medium-emphasis">Status</div>
+              <v-chip :color="viewingUser.enabled ? 'success' : 'error'" size="small" label>
+                {{ viewingUser.enabled ? 'Active' : 'Disabled' }}
+              </v-chip>
+            </v-col>
+            <v-col cols="6" class="mt-2">
+              <div class="text-caption text-medium-emphasis">Team</div>
+              <div>{{ viewTeam ? viewTeam.name : '—' }}</div>
+            </v-col>
+          </v-row>
+
+          <!-- Student-specific: WAR history -->
+          <template v-if="viewingUser.role === 'STUDENT' && !viewLoading">
+            <v-divider class="mb-4" />
+            <div class="text-subtitle-2 font-weight-bold mb-3">
+              Weekly Activity Reports ({{ viewActivities.length }})
+            </div>
+            <v-table v-if="viewActivities.length > 0" density="compact">
+              <thead>
+                <tr>
+                  <th>Week</th>
+                  <th>Activity</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="act in viewActivities" :key="act.id">
+                  <td>Wk {{ act.weekNumber }}</td>
+                  <td>{{ act.activityName }}</td>
+                  <td>
+                    <v-chip size="x-small" label>{{ act.category.replace(/_/g, ' ') }}</v-chip>
+                  </td>
+                  <td>{{ act.status.replace(/_/g, ' ') }}</td>
+                  <td>{{ act.plannedHours }}h / {{ act.actualHours != null ? `${act.actualHours}h` : '—' }}</td>
+                </tr>
+              </tbody>
+            </v-table>
+            <p v-else class="text-medium-emphasis text-body-2">No activities submitted yet.</p>
+
+            <v-divider class="mt-4 mb-4" />
+            <div class="text-subtitle-2 font-weight-bold mb-3">
+              Peer Evaluation Grades ({{ viewGrades.length }} week<span v-if="viewGrades.length !== 1">s</span>)
+            </div>
+            <v-table v-if="viewGrades.length > 0" density="compact">
+              <thead>
+                <tr>
+                  <th>Week</th>
+                  <th>Avg Score</th>
+                  <th>Max Score</th>
+                  <th>Evaluations</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="grade in viewGrades" :key="grade.weekId">
+                  <td>Week {{ grade.weekNumber }}</td>
+                  <td>{{ grade.averageScore.toFixed(1) }}</td>
+                  <td>{{ grade.maxPossibleScore }}</td>
+                  <td>{{ grade.evaluationsReceived.length }}</td>
+                </tr>
+              </tbody>
+            </v-table>
+            <p v-else class="text-medium-emphasis text-body-2">No evaluation grades yet.</p>
+          </template>
+
+          <!-- Instructor-specific: supervised teams -->
+          <template v-if="viewingUser.role === 'INSTRUCTOR' && !viewLoading">
+            <v-divider class="mb-4" />
+            <div class="text-subtitle-2 font-weight-bold mb-3">Supervised Team</div>
+            <p v-if="viewTeam">
+              <strong>{{ viewTeam.name }}</strong>
+              <span v-if="viewTeam.sectionName" class="text-medium-emphasis ml-2">
+                ({{ viewTeam.sectionName }})
+              </span>
+              — {{ viewTeam.students.length }} student<span v-if="viewTeam.students.length !== 1">s</span>
+            </p>
+            <p v-else class="text-medium-emphasis text-body-2">Not assigned to any team.</p>
+          </template>
+        </v-card-text>
+
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="text" @click="viewDialog = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

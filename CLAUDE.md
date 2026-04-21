@@ -193,6 +193,11 @@ project-pulse-app/
 | ✅ UC-27 | **Both** | ~~Fix WAR Activities (add/edit/delete)~~ | Done — 11 correct categories, added `activityName`/`plannedHours`/`actualHours`/`status`, `PUT` + `DELETE /activities/{id}`, `ActivityStatus` enum, V3 migration |
 | ✅ UC-28 | **Both** | ~~Peer evaluation comments~~ | Done — `publicComment` + `privateComment` per score in `EvaluationScore`; V4 migration; comment fields in evaluate dialog |
 | ✅ UC-29 | **Both** | ~~Student score report anonymized~~ | Done — `/my-scores` returns `MyScoreDto` (no evaluator names, no private comments); "My Scores" tab shows per-criterion averages and public comments only |
+| ✅ UC-16 | **Both** | ~~View a student~~ | Done — eye button in UsersPage opens detail dialog: team, WAR history table, grade history table. Backend: `GET /activities/student/{id}` + `GET /evaluations/grade/student/{id}` |
+| ✅ UC-22 | **Both** | ~~View an instructor~~ | Done — same eye button in UsersPage shows instructor's supervised team and student count |
+| ✅ UC-32 | **Frontend** | ~~WAR Report for a team~~ | Done — "WAR Report" tab in ActivitiesPage (Admin/Instructor only) with team + week selectors; calls `GET /activities/team/{id}/week/{id}` |
+| ✅ UC-33 | **Both** | ~~Per-student eval grade history~~ | Done — `GET /evaluations/grade/student/{id}` returns `List<GradeDto>` grouped by week; shown in student detail dialog |
+| ✅ UC-34 | **Both** | ~~Per-student WAR report~~ | Done — `GET /activities/student/{id}` returns all activities for a student; shown in student detail dialog |
 
 ---
 
@@ -255,6 +260,7 @@ DELETE /api/v1/activities/{id}                             (Student JWT — own 
 GET    /api/v1/activities/my                               (Student JWT)
 GET    /api/v1/activities/team/{id}                        (Admin/Instructor)
 GET    /api/v1/activities/team/{id}/week/{wid}
+GET    /api/v1/activities/student/{id}                     (Admin/Instructor)
 GET    /api/v1/activities                                  (Admin)
 ```
 Categories: `DEVELOPMENT`, `TESTING`, `BUGFIX`, `COMMUNICATION`, `DOCUMENTATION`, `DESIGN`, `PLANNING`, `LEARNING`, `DEPLOYMENT`, `SUPPORT`, `MISCELLANEOUS`
@@ -267,6 +273,7 @@ GET    /api/v1/evaluations/my                              (Student JWT — eval
 GET    /api/v1/evaluations/my-scores                       (Student JWT — returns MyScoreDto[]: no evaluator names, no privateComment)
 GET    /api/v1/evaluations/team/{tid}/week/{wid}           (Admin/Instructor — full EvaluationDto including all comments)
 GET    /api/v1/evaluations/grade/team/{tid}/week/{wid}/student/{sid}
+GET    /api/v1/evaluations/grade/student/{sid}             (Admin/Instructor — all weeks)
 ```
 
 ---

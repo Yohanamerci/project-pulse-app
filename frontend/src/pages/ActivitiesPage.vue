@@ -3,10 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   submitActivity,
+  updateActivity,
+  deleteActivity,
   getMyActivities,
   getAllActivities,
   type ActivityDto,
   type ActivityCategory,
+  type ActivityStatus,
 } from '@/apis/activities'
 import { getMyTeam } from '@/apis/teams'
 import { getSectionActiveWeek } from '@/apis/sections'
@@ -19,54 +22,102 @@ const error = ref<string | null>(null)
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 
-// Submit dialog state
+// Submit dialog
 const submitDialog = ref(false)
 const submitting = ref(false)
 const formRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 
+// Edit dialog
+const editDialog = ref(false)
+const editingId = ref<number | null>(null)
+const editFormRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
+const editing = ref(false)
+
+// Delete confirm dialog
+const deleteDialog = ref(false)
+const deletingId = ref<number | null>(null)
+const deletingName = ref('')
+const deleting = ref(false)
+
 const currentTeamId = ref<number | null>(null)
 const currentWeekId = ref<number | null>(null)
 
-const form = ref({
+const emptyForm = () => ({
+  activityName: '',
   category: null as ActivityCategory | null,
   description: '',
-  hours: 1,
+  plannedHours: 1,
+  actualHours: null as number | null,
+  status: 'IN_PROGRESS' as ActivityStatus,
 })
+
+const form = ref(emptyForm())
+const editForm = ref(emptyForm())
 
 const CATEGORIES: ActivityCategory[] = [
   'DEVELOPMENT',
   'TESTING',
-  'BUG_FIX',
+  'BUGFIX',
+  'COMMUNICATION',
   'DOCUMENTATION',
   'DESIGN',
-  'MEETING',
-  'OTHER',
+  'PLANNING',
+  'LEARNING',
+  'DEPLOYMENT',
+  'SUPPORT',
+  'MISCELLANEOUS',
 ]
+
+const STATUSES: ActivityStatus[] = ['IN_PROGRESS', 'UNDER_TESTING', 'DONE']
+
+const statusLabels: Record<ActivityStatus, string> = {
+  IN_PROGRESS: 'In Progress',
+  UNDER_TESTING: 'Under Testing',
+  DONE: 'Done',
+}
+
+const statusColors: Record<ActivityStatus, string> = {
+  IN_PROGRESS: 'warning',
+  UNDER_TESTING: 'info',
+  DONE: 'success',
+}
 
 const categoryColors: Record<ActivityCategory, string> = {
   DEVELOPMENT: 'primary',
   TESTING: 'success',
-  BUG_FIX: 'error',
+  BUGFIX: 'error',
+  COMMUNICATION: 'teal',
   DOCUMENTATION: 'info',
   DESIGN: 'purple',
-  MEETING: 'warning',
-  OTHER: 'grey',
+  PLANNING: 'orange',
+  LEARNING: 'cyan',
+  DEPLOYMENT: 'deep-purple',
+  SUPPORT: 'brown',
+  MISCELLANEOUS: 'grey',
 }
 
 const allHeaders = [
   { title: 'Student', key: 'studentName', sortable: true },
+  { title: 'Activity', key: 'activityName', sortable: true },
   { title: 'Category', key: 'category', sortable: true },
+  { title: 'Status', key: 'status', sortable: true },
   { title: 'Description', key: 'description', sortable: false },
-  { title: 'Hours', key: 'hours', sortable: true },
+  { title: 'Planned h', key: 'plannedHours', sortable: true },
+  { title: 'Actual h', key: 'actualHours', sortable: true },
   { title: 'Week #', key: 'weekNumber', sortable: true },
   { title: 'Submitted', key: 'submittedAt', sortable: true },
+  { title: 'Actions', key: 'actions', sortable: false },
 ]
 
-const tableHeaders = computed(() =>
-  authStore.isStudent
-    ? allHeaders.filter((h) => h.key !== 'studentName')
-    : allHeaders
-)
+const tableHeaders = computed(() => {
+  let headers = allHeaders
+  if (authStore.isStudent) {
+    headers = headers.filter((h) => h.key !== 'studentName')
+  } else {
+    headers = headers.filter((h) => h.key !== 'actions')
+  }
+  return headers
+})
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return ''
@@ -104,7 +155,7 @@ async function openSubmitDialog() {
       return
     }
     currentWeekId.value = activeWeek.id
-    form.value = { category: null, description: '', hours: 1 }
+    form.value = emptyForm()
     submitDialog.value = true
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -127,9 +178,12 @@ async function handleSubmit() {
     await submitActivity({
       teamId: currentTeamId.value,
       weekId: currentWeekId.value,
+      activityName: form.value.activityName,
       category: form.value.category,
       description: form.value.description,
-      hours: Number(form.value.hours),
+      plannedHours: Number(form.value.plannedHours),
+      actualHours: form.value.actualHours != null ? Number(form.value.actualHours) : null,
+      status: form.value.status,
     })
     submitDialog.value = false
     snackbarMessage.value = 'Activity submitted successfully!'
@@ -139,6 +193,67 @@ async function handleSubmit() {
     error.value = e instanceof Error ? e.message : 'Failed to submit activity.'
   } finally {
     submitting.value = false
+  }
+}
+
+function openEditDialog(item: ActivityDto) {
+  editingId.value = item.id
+  editForm.value = {
+    activityName: item.activityName,
+    category: item.category,
+    description: item.description,
+    plannedHours: item.plannedHours,
+    actualHours: item.actualHours,
+    status: item.status,
+  }
+  editDialog.value = true
+}
+
+async function handleEdit() {
+  if (!editFormRef.value || editingId.value == null) return
+  const { valid } = await editFormRef.value.validate()
+  if (!valid || !editForm.value.category) return
+
+  editing.value = true
+  try {
+    await updateActivity(editingId.value, {
+      activityName: editForm.value.activityName,
+      category: editForm.value.category,
+      description: editForm.value.description,
+      plannedHours: Number(editForm.value.plannedHours),
+      actualHours: editForm.value.actualHours != null ? Number(editForm.value.actualHours) : null,
+      status: editForm.value.status,
+    })
+    editDialog.value = false
+    snackbarMessage.value = 'Activity updated successfully!'
+    snackbar.value = true
+    await loadActivities()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to update activity.'
+  } finally {
+    editing.value = false
+  }
+}
+
+function openDeleteDialog(item: ActivityDto) {
+  deletingId.value = item.id
+  deletingName.value = item.activityName
+  deleteDialog.value = true
+}
+
+async function handleDelete() {
+  if (deletingId.value == null) return
+  deleting.value = true
+  try {
+    await deleteActivity(deletingId.value)
+    deleteDialog.value = false
+    snackbarMessage.value = 'Activity deleted.'
+    snackbar.value = true
+    await loadActivities()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete activity.'
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -204,17 +319,40 @@ onMounted(loadActivities)
           </v-chip>
         </template>
 
+        <template #item.status="{ item }">
+          <v-chip
+            :color="statusColors[item.status as ActivityStatus]"
+            size="small"
+            label
+          >
+            {{ statusLabels[item.status as ActivityStatus] }}
+          </v-chip>
+        </template>
+
         <template #item.submittedAt="{ item }">
           {{ formatDate(item.submittedAt) }}
         </template>
 
-        <template #item.hours="{ item }">
-          {{ item.hours }}h
+        <template #item.plannedHours="{ item }">
+          {{ item.plannedHours }}h
+        </template>
+
+        <template #item.actualHours="{ item }">
+          {{ item.actualHours != null ? `${item.actualHours}h` : '—' }}
+        </template>
+
+        <template #item.actions="{ item }">
+          <v-btn icon size="small" variant="text" @click="openEditDialog(item)">
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn icon size="small" variant="text" color="error" @click="openDeleteDialog(item)">
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
         </template>
       </v-data-table>
     </v-card>
 
-    <!-- Submit Activity Dialog (student only) -->
+    <!-- Submit Activity Dialog -->
     <v-dialog v-model="submitDialog" max-width="560" persistent>
       <v-card rounded="lg">
         <v-card-title class="pa-6 pb-4 d-flex align-center ga-2">
@@ -224,6 +362,14 @@ onMounted(loadActivities)
         <v-divider />
         <v-card-text class="pa-6">
           <v-form ref="formRef">
+            <v-text-field
+              v-model="form.activityName"
+              label="Activity Name *"
+              :rules="[(v) => !!v || 'Activity name is required']"
+              variant="outlined"
+              class="mb-4"
+            />
+
             <v-select
               v-model="form.category"
               :items="CATEGORIES"
@@ -243,17 +389,45 @@ onMounted(loadActivities)
               placeholder="Briefly describe what you worked on..."
             />
 
-            <v-text-field
-              v-model="form.hours"
-              label="Hours *"
-              type="number"
-              :rules="[
-                (v) => !!v || 'Hours is required',
-                (v) => Number(v) >= 0.5 || 'Minimum 0.5 hours',
-              ]"
+            <v-row>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="form.plannedHours"
+                  label="Planned Hours *"
+                  type="number"
+                  :rules="[
+                    (v) => !!v || 'Planned hours is required',
+                    (v) => Number(v) >= 0.5 || 'Minimum 0.5 hours',
+                  ]"
+                  variant="outlined"
+                  min="0.5"
+                  step="0.5"
+                />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="form.actualHours"
+                  label="Actual Hours"
+                  type="number"
+                  :rules="[
+                    (v) => !v || Number(v) >= 0 || 'Must be 0 or more',
+                  ]"
+                  variant="outlined"
+                  min="0"
+                  step="0.5"
+                  placeholder="Leave blank if not done"
+                />
+              </v-col>
+            </v-row>
+
+            <v-select
+              v-model="form.status"
+              :items="STATUSES"
+              :item-title="(s) => statusLabels[s as ActivityStatus]"
+              label="Status *"
+              :rules="[(v) => !!v || 'Status is required']"
               variant="outlined"
-              min="0.5"
-              step="0.5"
+              class="mt-4"
             />
           </v-form>
         </v-card-text>
@@ -261,13 +435,113 @@ onMounted(loadActivities)
         <v-card-actions class="pa-4">
           <v-spacer />
           <v-btn variant="text" :disabled="submitting" @click="submitDialog = false">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            variant="elevated"
-            :loading="submitting"
-            @click="handleSubmit"
-          >
+          <v-btn color="primary" variant="elevated" :loading="submitting" @click="handleSubmit">
             Submit
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Edit Activity Dialog -->
+    <v-dialog v-model="editDialog" max-width="560" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="pa-6 pb-4 d-flex align-center ga-2">
+          <v-icon icon="mdi-pencil" color="primary" />
+          Edit Activity
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pa-6">
+          <v-form ref="editFormRef">
+            <v-text-field
+              v-model="editForm.activityName"
+              label="Activity Name *"
+              :rules="[(v) => !!v || 'Activity name is required']"
+              variant="outlined"
+              class="mb-4"
+            />
+
+            <v-select
+              v-model="editForm.category"
+              :items="CATEGORIES"
+              label="Category *"
+              :rules="[(v) => !!v || 'Category is required']"
+              variant="outlined"
+              class="mb-4"
+            />
+
+            <v-textarea
+              v-model="editForm.description"
+              label="Description *"
+              :rules="[(v) => !!v || 'Description is required']"
+              variant="outlined"
+              rows="3"
+              class="mb-4"
+            />
+
+            <v-row>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="editForm.plannedHours"
+                  label="Planned Hours *"
+                  type="number"
+                  :rules="[
+                    (v) => !!v || 'Planned hours is required',
+                    (v) => Number(v) >= 0.5 || 'Minimum 0.5 hours',
+                  ]"
+                  variant="outlined"
+                  min="0.5"
+                  step="0.5"
+                />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="editForm.actualHours"
+                  label="Actual Hours"
+                  type="number"
+                  :rules="[
+                    (v) => !v || Number(v) >= 0 || 'Must be 0 or more',
+                  ]"
+                  variant="outlined"
+                  min="0"
+                  step="0.5"
+                />
+              </v-col>
+            </v-row>
+
+            <v-select
+              v-model="editForm.status"
+              :items="STATUSES"
+              :item-title="(s) => statusLabels[s as ActivityStatus]"
+              label="Status *"
+              :rules="[(v) => !!v || 'Status is required']"
+              variant="outlined"
+              class="mt-4"
+            />
+          </v-form>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="text" :disabled="editing" @click="editDialog = false">Cancel</v-btn>
+          <v-btn color="primary" variant="elevated" :loading="editing" @click="handleEdit">
+            Save
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Confirm Dialog -->
+    <v-dialog v-model="deleteDialog" max-width="400">
+      <v-card rounded="lg">
+        <v-card-title class="pa-6 pb-4">Delete Activity</v-card-title>
+        <v-card-text class="px-6 pb-4">
+          Are you sure you want to delete <strong>{{ deletingName }}</strong>? This cannot be undone.
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="text" :disabled="deleting" @click="deleteDialog = false">Cancel</v-btn>
+          <v-btn color="error" variant="elevated" :loading="deleting" @click="handleDelete">
+            Delete
           </v-btn>
         </v-card-actions>
       </v-card>

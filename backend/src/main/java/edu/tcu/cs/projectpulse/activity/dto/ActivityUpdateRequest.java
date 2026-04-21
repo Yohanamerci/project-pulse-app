@@ -6,9 +6,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record ActivityRequest(
-        @NotNull Long teamId,
-        @NotNull Long weekId,
+public record ActivityUpdateRequest(
         @NotBlank String activityName,
         @NotNull ActivityCategory category,
         @NotBlank String description,

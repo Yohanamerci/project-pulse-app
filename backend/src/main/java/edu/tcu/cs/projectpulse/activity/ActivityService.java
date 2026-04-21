@@ -2,6 +2,7 @@ package edu.tcu.cs.projectpulse.activity;
 
 import edu.tcu.cs.projectpulse.activity.dto.ActivityDto;
 import edu.tcu.cs.projectpulse.activity.dto.ActivityRequest;
+import edu.tcu.cs.projectpulse.activity.dto.ActivityUpdateRequest;
 import edu.tcu.cs.projectpulse.section.ActiveWeek;
 import edu.tcu.cs.projectpulse.section.ActiveWeekRepository;
 import edu.tcu.cs.projectpulse.team.Team;
@@ -51,11 +52,43 @@ public class ActivityService {
         activity.setStudent(student);
         activity.setTeam(team);
         activity.setWeek(week);
+        activity.setActivityName(req.activityName());
         activity.setCategory(req.category());
         activity.setDescription(req.description());
-        activity.setHours(req.hours());
+        activity.setPlannedHours(req.plannedHours());
+        activity.setActualHours(req.actualHours());
+        activity.setStatus(req.status());
 
         return ActivityDto.from(activityRepository.save(activity));
+    }
+
+    public ActivityDto updateActivity(Long id, String username, ActivityUpdateRequest req) {
+        Activity activity = activityRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Activity not found with id: " + id));
+
+        if (!activity.getStudent().getUsername().equals(username)) {
+            throw new IllegalStateException("You can only edit your own activities.");
+        }
+
+        activity.setActivityName(req.activityName());
+        activity.setCategory(req.category());
+        activity.setDescription(req.description());
+        activity.setPlannedHours(req.plannedHours());
+        activity.setActualHours(req.actualHours());
+        activity.setStatus(req.status());
+
+        return ActivityDto.from(activityRepository.save(activity));
+    }
+
+    public void deleteActivity(Long id, String username) {
+        Activity activity = activityRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Activity not found with id: " + id));
+
+        if (!activity.getStudent().getUsername().equals(username)) {
+            throw new IllegalStateException("You can only delete your own activities.");
+        }
+
+        activityRepository.delete(activity);
     }
 
     @Transactional(readOnly = true)

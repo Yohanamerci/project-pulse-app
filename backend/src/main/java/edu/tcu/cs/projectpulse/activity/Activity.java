@@ -6,7 +6,6 @@ import edu.tcu.cs.projectpulse.user.User;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,13 +16,23 @@ public class Activity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "activity_name")
+    private String activityName;
+
     @Enumerated(EnumType.STRING)
     private ActivityCategory category;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    private BigDecimal hours;
+    @Column(name = "planned_hours")
+    private Double plannedHours;
+
+    @Column(name = "actual_hours")
+    private Double actualHours;
+
+    @Enumerated(EnumType.STRING)
+    private ActivityStatus status;
 
     @Column(name = "submitted_at")
     @CreationTimestamp
@@ -46,14 +55,23 @@ public class Activity {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
+    public String getActivityName() { return activityName; }
+    public void setActivityName(String activityName) { this.activityName = activityName; }
+
     public ActivityCategory getCategory() { return category; }
     public void setCategory(ActivityCategory category) { this.category = category; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public BigDecimal getHours() { return hours; }
-    public void setHours(BigDecimal hours) { this.hours = hours; }
+    public Double getPlannedHours() { return plannedHours; }
+    public void setPlannedHours(Double plannedHours) { this.plannedHours = plannedHours; }
+
+    public Double getActualHours() { return actualHours; }
+    public void setActualHours(Double actualHours) { this.actualHours = actualHours; }
+
+    public ActivityStatus getStatus() { return status; }
+    public void setStatus(ActivityStatus status) { this.status = status; }
 
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }

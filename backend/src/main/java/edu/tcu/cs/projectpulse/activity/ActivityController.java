@@ -2,6 +2,7 @@ package edu.tcu.cs.projectpulse.activity;
 
 import edu.tcu.cs.projectpulse.activity.dto.ActivityDto;
 import edu.tcu.cs.projectpulse.activity.dto.ActivityRequest;
+import edu.tcu.cs.projectpulse.activity.dto.ActivityUpdateRequest;
 import edu.tcu.cs.projectpulse.shared.Result;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +27,22 @@ public class ActivityController {
     public Result<ActivityDto> submitActivity(@AuthenticationPrincipal Jwt jwt,
                                               @Valid @RequestBody ActivityRequest req) {
         return Result.success("Activity submitted", activityService.submit(jwt.getSubject(), req));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public Result<ActivityDto> updateActivity(@AuthenticationPrincipal Jwt jwt,
+                                              @PathVariable Long id,
+                                              @Valid @RequestBody ActivityUpdateRequest req) {
+        return Result.success("Activity updated", activityService.updateActivity(id, jwt.getSubject(), req));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public Result<Void> deleteActivity(@AuthenticationPrincipal Jwt jwt,
+                                       @PathVariable Long id) {
+        activityService.deleteActivity(id, jwt.getSubject());
+        return Result.success("Activity deleted", null);
     }
 
     @GetMapping("/my")

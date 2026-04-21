@@ -3,8 +3,11 @@ package edu.tcu.cs.projectpulse.user;
 import edu.tcu.cs.projectpulse.shared.Result;
 import edu.tcu.cs.projectpulse.user.dto.CreateUserRequest;
 import edu.tcu.cs.projectpulse.user.dto.UpdateUserRequest;
+import edu.tcu.cs.projectpulse.user.dto.UserUpdateMeRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,6 +43,13 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public Result<UserDto> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest req) {
         return Result.success("User updated", userService.updateUser(id, req));
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public Result<UserDto> updateMe(@AuthenticationPrincipal Jwt jwt,
+                                    @Valid @RequestBody UserUpdateMeRequest req) {
+        return Result.success("Profile updated", userService.updateMe(jwt.getSubject(), req));
     }
 
     @DeleteMapping("/{id}")

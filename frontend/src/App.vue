@@ -95,6 +95,7 @@ const allItems = [
   { title: 'Sections',    icon: 'mdi-school',            route: '/sections',    roles: ['ADMIN'] },
   { title: 'Users',       icon: 'mdi-account-cog',       route: '/users',       roles: ['ADMIN'] },
   { title: 'Rubrics',    icon: 'mdi-clipboard-list',    route: '/rubrics',     roles: ['ADMIN'] },
+  { title: 'Edit Profile', icon: 'mdi-account-edit',   route: '/profile',     roles: ['ADMIN','INSTRUCTOR','STUDENT'] },
 ]
 
 const visibleItems = computed(() => {

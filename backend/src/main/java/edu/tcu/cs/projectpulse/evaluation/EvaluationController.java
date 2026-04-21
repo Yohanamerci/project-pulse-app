@@ -36,7 +36,7 @@ public class EvaluationController {
 
     @GetMapping("/my-scores")
     @PreAuthorize("hasRole('STUDENT')")
-    public Result<List<EvaluationDto>> getMyScores(@AuthenticationPrincipal Jwt jwt) {
+    public Result<List<MyScoreDto>> getMyScores(@AuthenticationPrincipal Jwt jwt) {
         return Result.success(evaluationService.findMyScores(jwt.getSubject()));
     }
 

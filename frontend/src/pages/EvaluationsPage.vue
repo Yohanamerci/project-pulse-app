@@ -8,6 +8,8 @@ import {
   getTeamWeekEvaluations,
   getGrade,
   type EvaluationDto,
+  type MyScoreDto,
+  type AnonymousScoreDto,
   type GradeDto,
 } from '@/apis/evaluations'
 import { getMyTeam, getTeams, type TeamDto, type TeamMemberDto } from '@/apis/teams'
@@ -46,14 +48,20 @@ function hasEvaluated(teammateId: number): boolean {
 const evalDialog = ref(false)
 const evalTarget = ref<TeamMemberDto | null>(null)
 const criterionScores = ref<Record<number, number>>({})
+const criterionPublicComments = ref<Record<number, string>>({})
+const criterionPrivateComments = ref<Record<number, string>>({})
 const submittingEval = ref(false)
 
 function openEvalDialog(teammate: TeamMemberDto) {
   evalTarget.value = teammate
   criterionScores.value = {}
+  criterionPublicComments.value = {}
+  criterionPrivateComments.value = {}
   if (rubric.value) {
     rubric.value.criteria.forEach((c) => {
       criterionScores.value[c.id] = 0
+      criterionPublicComments.value[c.id] = ''
+      criterionPrivateComments.value[c.id] = ''
     })
   }
   evalDialog.value = true
@@ -65,6 +73,8 @@ async function handleSubmitEval() {
   const scores = rubric.value.criteria.map((c) => ({
     criterionId: c.id,
     score: criterionScores.value[c.id] ?? 0,
+    publicComment: criterionPublicComments.value[c.id] || undefined,
+    privateComment: criterionPrivateComments.value[c.id] || undefined,
   }))
 
   submittingEval.value = true
@@ -107,7 +117,7 @@ async function loadStudentData() {
 }
 
 // ---- STUDENT: My Scores ----
-const myScores = ref<EvaluationDto[]>([])
+const myScores = ref<MyScoreDto[]>([])
 const loadingScores = ref(false)
 
 async function loadMyScores() {
@@ -120,6 +130,41 @@ async function loadMyScores() {
   } finally {
     loadingScores.value = false
   }
+}
+
+function criterionAverage(criterionId: number): string {
+  const values = myScores.value.flatMap((e) =>
+    e.scores.filter((s) => s.criterionId === criterionId).map((s) => s.score)
+  )
+  if (!values.length) return '—'
+  const avg = values.reduce((a, b) => a + b, 0) / values.length
+  return avg.toFixed(1)
+}
+
+function overallAverageScore(): string {
+  if (!myScores.value.length) return '—'
+  const avg = myScores.value.reduce((a, e) => a + e.totalScore, 0) / myScores.value.length
+  return avg.toFixed(1)
+}
+
+function uniqueCriteria(): AnonymousScoreDto[] {
+  const seen = new Set<number>()
+  const result: AnonymousScoreDto[] = []
+  for (const e of myScores.value) {
+    for (const s of e.scores) {
+      if (!seen.has(s.criterionId)) {
+        seen.add(s.criterionId)
+        result.push(s)
+      }
+    }
+  }
+  return result
+}
+
+function publicCommentsFor(criterionId: number): string[] {
+  return myScores.value
+    .flatMap((e) => e.scores.filter((s) => s.criterionId === criterionId && s.publicComment))
+    .map((s) => s.publicComment as string)
 }
 
 // ---- ADMIN/INSTRUCTOR: Team Overview ----
@@ -416,55 +461,49 @@ watch(selectedWeekId, () => {
           <v-progress-circular indeterminate color="success" />
         </div>
 
-        <template v-else>
-          <v-alert
-            v-if="myScores.length === 0"
-            type="info"
-            variant="tonal"
-            density="compact"
-          >
+        <template v-else-if="myScores.length === 0">
+          <v-alert type="info" variant="tonal" density="compact">
             No scores received yet.
           </v-alert>
+        </template>
 
-          <v-row v-else>
-            <v-col
-              v-for="evaluation in myScores"
-              :key="evaluation.id"
-              cols="12"
-              md="6"
-            >
-              <v-card rounded="lg" elevation="2">
-                <v-card-title class="d-flex align-center justify-space-between pa-4 pb-2">
-                  <span class="text-body-1 font-weight-bold">
-                    Week {{ evaluation.weekNumber }} — from {{ evaluation.evaluatorName }}
-                  </span>
-                  <v-chip color="success" size="small" variant="tonal">
-                    {{ evaluation.totalScore }} pts
-                  </v-chip>
-                </v-card-title>
-                <v-card-text class="pt-2">
-                  <v-list density="compact">
-                    <v-list-item
-                      v-for="score in evaluation.scores"
-                      :key="score.criterionId"
+        <template v-else>
+          <!-- Overall summary card -->
+          <v-card rounded="lg" elevation="2" class="mb-6">
+            <v-card-title class="pa-4 pb-2 d-flex align-center justify-space-between">
+              <span>Your Overall Score</span>
+              <v-chip color="success" size="small" variant="tonal">
+                {{ overallAverageScore() }} avg pts · {{ myScores.length }} evaluation(s)
+              </v-chip>
+            </v-card-title>
+            <v-card-text class="pt-0">
+              <v-list density="compact">
+                <v-list-item
+                  v-for="criterion in uniqueCriteria()"
+                  :key="criterion.criterionId"
+                >
+                  <template #title>
+                    <span class="text-body-2 font-weight-medium">{{ criterion.criterionName }}</span>
+                  </template>
+                  <template #append>
+                    <v-chip size="x-small" variant="outlined">
+                      avg {{ criterionAverage(criterion.criterionId) }} / {{ criterion.maxScore }}
+                    </v-chip>
+                  </template>
+                  <!-- Public comments for this criterion -->
+                  <template #subtitle>
+                    <div
+                      v-for="(comment, i) in publicCommentsFor(criterion.criterionId)"
+                      :key="i"
+                      class="text-caption text-medium-emphasis"
                     >
-                      <template #title>
-                        <span class="text-body-2">{{ score.criterionName }}</span>
-                      </template>
-                      <template #append>
-                        <v-chip size="x-small" variant="outlined">
-                          {{ score.score }} / {{ score.maxScore }}
-                        </v-chip>
-                      </template>
-                    </v-list-item>
-                  </v-list>
-                  <div class="text-caption text-medium-emphasis mt-1">
-                    Submitted: {{ formatDate(evaluation.submittedAt) }}
-                  </div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
+                      "{{ comment }}"
+                    </div>
+                  </template>
+                </v-list-item>
+              </v-list>
+            </v-card-text>
+          </v-card>
         </template>
       </v-window-item>
 
@@ -652,6 +691,24 @@ watch(selectedWeekId, () => {
                 :step="1"
                 thumb-label
                 color="success"
+                hide-details
+                class="mb-3"
+              />
+              <v-textarea
+                v-model="criterionPublicComments[criterion.id]"
+                label="Public comment (visible to evaluatee)"
+                variant="outlined"
+                density="compact"
+                rows="2"
+                hide-details
+                class="mb-2"
+              />
+              <v-textarea
+                v-model="criterionPrivateComments[criterion.id]"
+                label="Private comment (instructor only)"
+                variant="outlined"
+                density="compact"
+                rows="2"
                 hide-details
               />
             </div>

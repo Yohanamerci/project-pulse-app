@@ -78,6 +78,8 @@ public class EvaluationService {
             EvaluationScore es = new EvaluationScore();
             es.setCriterion(criterion);
             es.setScore(sr.score());
+            es.setPublicComment(sr.publicComment());
+            es.setPrivateComment(sr.privateComment());
             es.setEvaluation(evaluation);
             evaluation.getScores().add(es);
         }
@@ -94,11 +96,11 @@ public class EvaluationService {
     }
 
     @Transactional(readOnly = true)
-    public List<EvaluationDto> findMyScores(String username) {
+    public List<MyScoreDto> findMyScores(String username) {
         User evaluatee = userRepository.findByUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + username));
         return peerEvaluationRepository.findByEvaluateeId(evaluatee.getId())
-                .stream().map(EvaluationDto::from).toList();
+                .stream().map(MyScoreDto::from).toList();
     }
 
     @Transactional(readOnly = true)

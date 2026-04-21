@@ -8,6 +8,7 @@ import {
   addStudent,
   removeStudent,
   assignInstructor,
+  removeInstructor,
   assignRubric,
   deleteTeam,
   type TeamDto,
@@ -114,6 +115,7 @@ const managedTeam = ref<TeamDto | null>(null)
 const selectedInstructorId = ref<number | null>(null)
 const selectedStudentId = ref<number | null>(null)
 const assigningInstructor = ref(false)
+const removingInstructorId = ref<number | null>(null)
 const addingStudent = ref(false)
 const removingStudentId = ref<number | null>(null)
 const selectedRubricId = ref<number | null>(null)
@@ -141,6 +143,22 @@ async function handleAssignInstructor() {
     error.value = e instanceof Error ? e.message : 'Failed to assign instructor.'
   } finally {
     assigningInstructor.value = false
+  }
+}
+
+async function handleRemoveInstructor(instructorId: number) {
+  if (!managedTeam.value) return
+  removingInstructorId.value = instructorId
+  try {
+    const updated = await removeInstructor(managedTeam.value.id, instructorId)
+    managedTeam.value = updated
+    snackbarMessage.value = 'Instructor removed.'
+    snackbar.value = true
+    await loadTeams()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to remove instructor.'
+  } finally {
+    removingInstructorId.value = null
   }
 }
 
@@ -610,6 +628,9 @@ onMounted(async () => {
               color="warning"
               size="small"
               prepend-icon="mdi-school"
+              closable
+              :disabled="removingInstructorId === inst.id"
+              @click:close="handleRemoveInstructor(inst.id)"
             >
               {{ inst.firstName }} {{ inst.lastName }}
             </v-chip>

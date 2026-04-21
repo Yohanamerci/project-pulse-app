@@ -68,6 +68,11 @@ export async function assignRubric(teamId: number, rubricId: number): Promise<Te
   return response.data.data
 }
 
+export async function removeInstructor(teamId: number, instructorId: number): Promise<TeamDto> {
+  const response = await request.delete<{ flag: boolean; code: number; message: string; data: TeamDto }>(`/teams/${teamId}/instructor/${instructorId}`)
+  return response.data.data
+}
+
 export async function deleteTeam(teamId: number): Promise<void> {
   await request.delete(`/teams/${teamId}`)
 }

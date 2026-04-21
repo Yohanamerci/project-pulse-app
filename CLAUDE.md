@@ -189,13 +189,20 @@ project-pulse-app/
 | # | Area | Task | Notes |
 |---|------|------|-------|
 | 13 | **Both** | Azure deployment | Add `.github/workflows/deploy.yml`. Configure GitHub secrets: `AZURE_CREDENTIALS`, `DB_URL`, `DB_PASSWORD`, `JWT_SECRET_KEY` |
+
+### Completed Use Cases (numerical order)
+
+| # | Area | Task | Notes |
+|---|------|------|-------|
+| ✅ UC-16 | **Both** | ~~View a student~~ | Done — eye button in UsersPage opens detail dialog: team, WAR history table, grade history table. Backend: `GET /activities/student/{id}` + `GET /evaluations/grade/student/{id}` |
+| ✅ UC-17 | **Both** | ~~Delete a student~~ | Done — delete button (non-admin users) in UsersPage with confirm dialog; calls `DELETE /users/{id}` (soft-delete, sets enabled=false) |
+| ✅ UC-20 | **Both** | ~~Remove instructor from team~~ | Done — closable instructor chips in Manage Team dialog; `DELETE /teams/{id}/instructor/{iid}` backend endpoint |
+| ✅ UC-22 | **Both** | ~~View an instructor~~ | Done — same eye button in UsersPage shows instructor's supervised team and student count |
 | ✅ UC-26 | **Both** | ~~Student edits own profile~~ | Done — `PUT /users/me` + `UserUpdateMeRequest`; `ProfilePage.vue` at `/profile`, nav item for all roles |
 | ✅ UC-27 | **Both** | ~~Fix WAR Activities (add/edit/delete)~~ | Done — 11 correct categories, added `activityName`/`plannedHours`/`actualHours`/`status`, `PUT` + `DELETE /activities/{id}`, `ActivityStatus` enum, V3 migration |
 | ✅ UC-28 | **Both** | ~~Peer evaluation comments~~ | Done — `publicComment` + `privateComment` per score in `EvaluationScore`; V4 migration; comment fields in evaluate dialog |
 | ✅ UC-29 | **Both** | ~~Student score report anonymized~~ | Done — `/my-scores` returns `MyScoreDto` (no evaluator names, no private comments); "My Scores" tab shows per-criterion averages and public comments only |
-| ✅ UC-16 | **Both** | ~~View a student~~ | Done — eye button in UsersPage opens detail dialog: team, WAR history table, grade history table. Backend: `GET /activities/student/{id}` + `GET /evaluations/grade/student/{id}` |
-| ✅ UC-22 | **Both** | ~~View an instructor~~ | Done — same eye button in UsersPage shows instructor's supervised team and student count |
-| ✅ UC-32 | **Frontend** | ~~WAR Report for a team~~ | Done — "WAR Report" tab in ActivitiesPage (Admin/Instructor only) with team + week selectors; calls `GET /activities/team/{id}/week/{id}` |
+| ✅ UC-32 | **Frontend** | ~~WAR Report for a team~~ | Done — "WAR Report" tab in ActivitiesPage (students + instructors) with team + week selectors; calls `GET /activities/team/{id}/week/{id}` |
 | ✅ UC-33 | **Both** | ~~Per-student eval grade history~~ | Done — `GET /evaluations/grade/student/{id}` returns `List<GradeDto>` grouped by week; shown in student detail dialog |
 | ✅ UC-34 | **Both** | ~~Per-student WAR report~~ | Done — `GET /activities/student/{id}` returns all activities for a student; shown in student detail dialog |
 
@@ -240,6 +247,7 @@ POST   /api/v1/teams               { name, sectionId, rubricId, instructorId }
 POST   /api/v1/teams/{id}/students/{sid}
 DELETE /api/v1/teams/{id}/students/{sid}
 PUT    /api/v1/teams/{id}/instructor/{iid}
+DELETE /api/v1/teams/{id}/instructor/{iid}
 PUT    /api/v1/teams/{id}/rubric/{rid}
 ```
 

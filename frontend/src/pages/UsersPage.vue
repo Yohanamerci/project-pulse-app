@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getUsers, createUser, updateUser, type UserDto } from '@/apis/users'
+import { getUsers, createUser, updateUser, deleteUser, type UserDto } from '@/apis/users'
 import { getTeams, type TeamDto } from '@/apis/teams'
 import { getStudentActivities, type ActivityDto } from '@/apis/activities'
 import { getStudentGrades, type GradeDto } from '@/apis/evaluations'
@@ -166,6 +166,24 @@ async function openViewDialog(user: UserDto) {
   }
 }
 
+// Delete User
+const deletingUserId = ref<number | null>(null)
+
+async function handleDeleteUser(user: UserDto) {
+  if (!confirm(`Delete user "@${user.username}"? This cannot be undone.`)) return
+  deletingUserId.value = user.id
+  try {
+    await deleteUser(user.id)
+    snackbarMessage.value = `User "@${user.username}" deleted.`
+    snackbar.value = true
+    await loadUsers()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete user.'
+  } finally {
+    deletingUserId.value = null
+  }
+}
+
 async function loadUsers() {
   loading.value = true
   error.value = null
@@ -281,6 +299,15 @@ onMounted(loadUsers)
             size="small"
             color="primary"
             @click="openEditDialog(item)"
+          />
+          <v-btn
+            v-if="item.role !== 'ADMIN'"
+            icon="mdi-delete-outline"
+            variant="text"
+            size="small"
+            color="error"
+            :loading="deletingUserId === item.id"
+            @click="handleDeleteUser(item)"
           />
         </template>
       </v-data-table>

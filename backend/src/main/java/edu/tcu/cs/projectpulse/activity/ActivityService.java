@@ -112,6 +112,12 @@ public class ActivityService {
     }
 
     @Transactional(readOnly = true)
+    public List<ActivityDto> findByStudent(Long studentId) {
+        return activityRepository.findByStudentId(studentId)
+                .stream().map(ActivityDto::from).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<ActivityDto> findAll() {
         return activityRepository.findAll().stream().map(ActivityDto::from).toList();
     }

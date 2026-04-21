@@ -63,8 +63,14 @@ public class ActivityController {
         return Result.success(activityService.findByTeamAndWeek(teamId, weekId));
     }
 
+    @GetMapping("/student/{studentId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<List<ActivityDto>> getActivitiesByStudent(@PathVariable Long studentId) {
+        return Result.success(activityService.findByStudent(studentId));
+    }
+
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<List<ActivityDto>> getAllActivities() {
         return Result.success(activityService.findAll());
     }

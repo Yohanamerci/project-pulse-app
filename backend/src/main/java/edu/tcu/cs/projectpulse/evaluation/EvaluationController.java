@@ -53,4 +53,10 @@ public class EvaluationController {
                                            @PathVariable Long studentId) {
         return Result.success(evaluationService.calculateGrade(teamId, weekId, studentId));
     }
+
+    @GetMapping("/grade/student/{studentId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<List<GradeDto>> getGradesByStudent(@PathVariable Long studentId) {
+        return Result.success(evaluationService.findGradesByStudent(studentId));
+    }
 }

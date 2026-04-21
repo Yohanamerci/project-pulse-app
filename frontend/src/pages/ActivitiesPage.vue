@@ -7,12 +7,13 @@ import {
   deleteActivity,
   getMyActivities,
   getAllActivities,
+  getTeamWeekActivities,
   type ActivityDto,
   type ActivityCategory,
   type ActivityStatus,
 } from '@/apis/activities'
-import { getMyTeam } from '@/apis/teams'
-import { getSectionActiveWeek } from '@/apis/sections'
+import { getMyTeam, getTeams, type TeamDto } from '@/apis/teams'
+import { getSectionActiveWeek, getSectionActiveWeeks, type ActiveWeekDto } from '@/apis/sections'
 
 const authStore = useAuthStore()
 
@@ -257,7 +258,65 @@ async function handleDelete() {
   }
 }
 
-onMounted(loadActivities)
+// WAR Report (Admin/Instructor)
+const activeTab = ref('all')
+const warTeams = ref<TeamDto[]>([])
+const warTeamId = ref<number | null>(null)
+const warWeeks = ref<ActiveWeekDto[]>([])
+const warWeekId = ref<number | null>(null)
+const warActivities = ref<ActivityDto[]>([])
+const warLoading = ref(false)
+const warError = ref<string | null>(null)
+const warGenerated = ref(false)
+
+async function loadWarTeams() {
+  try {
+    if (authStore.isStudent) {
+      const myTeam = await getMyTeam()
+      warTeams.value = [myTeam]
+      warTeamId.value = myTeam.id
+      await onWarTeamChange()
+    } else {
+      warTeams.value = await getTeams()
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function onWarTeamChange() {
+  warWeekId.value = null
+  warWeeks.value = []
+  warActivities.value = []
+  warGenerated.value = false
+  const team = warTeams.value.find((t) => t.id === warTeamId.value)
+  if (!team?.sectionId) return
+  try {
+    warWeeks.value = await getSectionActiveWeeks(team.sectionId)
+  } catch {
+    // ignore
+  }
+}
+
+async function generateWarReport() {
+  if (!warTeamId.value || !warWeekId.value) return
+  warLoading.value = true
+  warError.value = null
+  warGenerated.value = false
+  try {
+    warActivities.value = await getTeamWeekActivities(warTeamId.value, warWeekId.value)
+    warGenerated.value = true
+  } catch (e: unknown) {
+    warError.value = e instanceof Error ? e.message : 'Failed to load report.'
+  } finally {
+    warLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadActivities()
+  if (!authStore.isAdmin) loadWarTeams()
+})
 </script>
 
 <template>
@@ -297,8 +356,99 @@ onMounted(loadActivities)
       {{ error }}
     </v-alert>
 
-    <!-- Data Table -->
-    <v-card rounded="lg" elevation="2">
+    <!-- Tabs for Student/Instructor -->
+    <v-tabs v-if="!authStore.isAdmin" v-model="activeTab" color="primary" class="mb-4">
+      <v-tab value="all">{{ authStore.isStudent ? 'My Activities' : 'All Activities' }}</v-tab>
+      <v-tab value="war">WAR Report</v-tab>
+    </v-tabs>
+
+    <!-- WAR Report Panel -->
+    <template v-if="!authStore.isAdmin && activeTab === 'war'">
+      <v-card rounded="lg" elevation="2" class="mb-4 pa-4">
+        <v-row align="center" class="ga-2">
+          <v-col cols="12" sm="4">
+            <v-select
+              v-model="warTeamId"
+              :items="warTeams"
+              item-title="name"
+              item-value="id"
+              label="Select Team"
+              variant="outlined"
+              density="compact"
+              :clearable="!authStore.isStudent"
+              :disabled="authStore.isStudent"
+              @update:model-value="onWarTeamChange"
+            />
+          </v-col>
+          <v-col cols="12" sm="4">
+            <v-select
+              v-model="warWeekId"
+              :items="warWeeks"
+              :item-title="(w: ActiveWeekDto) => `Week ${w.weekNumber} (${w.startDate} → ${w.endDate})`"
+              item-value="id"
+              label="Select Week"
+              variant="outlined"
+              density="compact"
+              :disabled="!warTeamId || warWeeks.length === 0"
+              clearable
+            />
+          </v-col>
+          <v-col cols="12" sm="auto">
+            <v-btn
+              color="primary"
+              :loading="warLoading"
+              :disabled="!warTeamId || !warWeekId"
+              @click="generateWarReport"
+            >
+              Generate Report
+            </v-btn>
+          </v-col>
+        </v-row>
+      </v-card>
+
+      <v-alert v-if="warError" type="error" variant="tonal" closable class="mb-4" @click:close="warError = null">
+        {{ warError }}
+      </v-alert>
+
+      <v-card v-if="warGenerated" rounded="lg" elevation="2">
+        <v-card-title class="pa-4 pb-2">
+          WAR Report — {{ warTeams.find((t) => t.id === warTeamId)?.name }}
+          &nbsp;/&nbsp;
+          Week {{ warWeeks.find((w) => w.id === warWeekId)?.weekNumber }}
+        </v-card-title>
+        <v-card-subtitle class="px-4 pb-3 text-medium-emphasis">
+          {{ warActivities.length }} activit{{ warActivities.length === 1 ? 'y' : 'ies' }} submitted
+        </v-card-subtitle>
+        <v-divider />
+        <v-data-table
+          :headers="allHeaders.filter((h) => h.key !== 'actions')"
+          :items="warActivities"
+          item-value="id"
+          :items-per-page="-1"
+          hide-default-footer
+          no-data-text="No activities submitted for this week."
+        >
+          <template #item.category="{ item }">
+            <v-chip :color="categoryColors[item.category as ActivityCategory]" size="small" label>
+              {{ item.category.replace(/_/g, ' ') }}
+            </v-chip>
+          </template>
+          <template #item.status="{ item }">
+            <v-chip :color="statusColors[item.status as ActivityStatus]" size="small" label>
+              {{ statusLabels[item.status as ActivityStatus] }}
+            </v-chip>
+          </template>
+          <template #item.submittedAt="{ item }">{{ formatDate(item.submittedAt) }}</template>
+          <template #item.plannedHours="{ item }">{{ item.plannedHours }}h</template>
+          <template #item.actualHours="{ item }">
+            {{ item.actualHours != null ? `${item.actualHours}h` : '—' }}
+          </template>
+        </v-data-table>
+      </v-card>
+    </template>
+
+    <!-- All Activities Table (admin always, others on "all" tab) -->
+    <v-card v-if="authStore.isAdmin || activeTab === 'all'" rounded="lg" elevation="2">
       <v-data-table
         :headers="tableHeaders"
         :items="activities"

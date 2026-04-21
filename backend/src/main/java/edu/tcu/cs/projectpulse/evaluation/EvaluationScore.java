@@ -13,6 +13,12 @@ public class EvaluationScore {
 
     private Integer score;
 
+    @Column(name = "public_comment", columnDefinition = "TEXT")
+    private String publicComment;
+
+    @Column(name = "private_comment", columnDefinition = "TEXT")
+    private String privateComment;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "evaluation_id")
     private PeerEvaluation evaluation;
@@ -28,6 +34,12 @@ public class EvaluationScore {
 
     public Integer getScore() { return score; }
     public void setScore(Integer score) { this.score = score; }
+
+    public String getPublicComment() { return publicComment; }
+    public void setPublicComment(String publicComment) { this.publicComment = publicComment; }
+
+    public String getPrivateComment() { return privateComment; }
+    public void setPrivateComment(String privateComment) { this.privateComment = privateComment; }
 
     public PeerEvaluation getEvaluation() { return evaluation; }
     public void setEvaluation(PeerEvaluation evaluation) { this.evaluation = evaluation; }

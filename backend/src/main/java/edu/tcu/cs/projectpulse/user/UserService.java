@@ -2,6 +2,7 @@ package edu.tcu.cs.projectpulse.user;
 
 import edu.tcu.cs.projectpulse.user.dto.CreateUserRequest;
 import edu.tcu.cs.projectpulse.user.dto.UpdateUserRequest;
+import edu.tcu.cs.projectpulse.user.dto.UserUpdateMeRequest;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,15 @@ public class UserService {
         if (req.lastName() != null) user.setLastName(req.lastName());
         if (req.email() != null) user.setEmail(req.email());
         if (req.enabled() != null) user.setEnabled(req.enabled());
+        return UserDto.from(userRepository.save(user));
+    }
+
+    public UserDto updateMe(String username, UserUpdateMeRequest req) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + username));
+        user.setFirstName(req.firstName());
+        user.setLastName(req.lastName());
+        user.setEmail(req.email());
         return UserDto.from(userRepository.save(user));
     }
 

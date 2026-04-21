@@ -44,3 +44,12 @@ export async function updateUser(
   const response = await request.put<{ flag: boolean; code: number; message: string; data: UserDto }>(`/users/${id}`, data)
   return response.data.data
 }
+
+export async function updateMe(data: {
+  firstName: string
+  lastName: string
+  email: string
+}): Promise<UserDto> {
+  const response = await request.put<{ flag: boolean; code: number; message: string; data: UserDto }>('/users/me', data)
+  return response.data.data
+}

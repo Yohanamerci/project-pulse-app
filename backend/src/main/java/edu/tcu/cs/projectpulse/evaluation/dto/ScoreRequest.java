@@ -5,5 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record ScoreRequest(
         @NotNull Long criterionId,
-        @NotNull @Min(0) Integer score
+        @NotNull @Min(0) Integer score,
+        String publicComment,
+        String privateComment
 ) {}

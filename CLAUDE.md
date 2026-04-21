@@ -69,7 +69,9 @@ project-pulse-app/
 ├── backend/src/main/resources/
 │   └── db/migration/
 │       ├── V1__baseline.sql    # Schema (tables + admin user)
-│       └── V2__seed_data.sql   # Sample data for dev/testing
+│       ├── V2__seed_data.sql   # Sample data for dev/testing
+│       ├── V3__fix_activity_fields.sql  # Fixes category enum→VARCHAR, adds activityName/plannedHours/actualHours/status
+│       └── V4__add_evaluation_comments.sql  # Adds publicComment/privateComment to evaluation_scores
 │
 ├── frontend/src/
 │   ├── pages/           # Route-level views (one per feature)
@@ -121,14 +123,14 @@ project-pulse-app/
 | Domain | Endpoints | BR Enforced |
 |--------|-----------|-------------|
 | **Auth** | `POST /api/v1/auth/login` | JWT HMAC |
-| **Users** | `GET /users`, `GET /users/{id}`, `POST /users`, `PUT /users/{id}` | Admin-only create/update |
+| **Users** | `GET /users`, `GET /users/{id}`, `POST /users`, `PUT /users/{id}`, `DELETE /users/{id}`, `PUT /users/me` | Admin-only create/update; any authenticated user can call `/me` |
 | **Sections** | `GET/POST/PUT /sections`, `GET/POST /sections/{id}/active-week`, `GET /sections/{id}/active-weeks` | BR-2 |
 | **Rubrics** | `GET/POST/PUT /rubrics`, `GET/POST/PUT /rubrics/{id}/criteria` | — |
 | **Teams** | `GET/POST /teams`, `GET /teams/{id}`, `GET /teams/section/{id}`, `GET /teams/my-team`, `POST/DELETE /teams/{id}/students/{sid}`, `PUT /teams/{id}/instructor/{iid}`, `PUT /teams/{id}/rubric/{rid}` | BR-1 |
-| **Activities** | `POST /activities`, `GET /activities/my`, `GET /activities/team/{id}`, `GET /activities/team/{id}/week/{id}`, `GET /activities` | BR-4 |
-| **Evaluations** | `POST /evaluations`, `GET /evaluations/my`, `GET /evaluations/my-scores`, `GET /evaluations/team/{tid}/week/{wid}`, `GET /evaluations/grade/team/{tid}/week/{wid}/student/{sid}` | BR-3, BR-4, BR-5 |
+| **Activities** | `POST /activities`, `PUT /activities/{id}`, `DELETE /activities/{id}`, `GET /activities/my`, `GET /activities/team/{id}`, `GET /activities/team/{id}/week/{id}`, `GET /activities` | BR-4 |
+| **Evaluations** | `POST /evaluations`, `GET /evaluations/my`, `GET /evaluations/my-scores`, `GET /evaluations/team/{tid}/week/{wid}`, `GET /evaluations/grade/team/{tid}/week/{wid}/student/{sid}` — scores include `publicComment` + `privateComment`; `/my-scores` returns `MyScoreDto` (no evaluator names, no private comments) | BR-3, BR-4, BR-5 |
 | **Error Handling** | GlobalExceptionHandler handles: validation (400), not found (404), bad credentials (401), forbidden (403), illegal state/argument (400), catch-all (500) | All domains |
-| **DB Migrations** | Flyway V1 (schema) + V2 (seed data, `INSERT IGNORE` idempotent) | — |
+| **DB Migrations** | Flyway V1 (schema) + V2 (seed data, `INSERT IGNORE` idempotent) + V3 (fix activity fields) + V4 (evaluation comments) | — |
 | **Email Notifications** | `NotificationService` (async) — emails all section students when active week opens. View in Mailpit at http://localhost:8025 | — |
 | **Swagger/OpenAPI** | `springdoc-openapi-starter-webmvc-ui` — available at `/swagger-ui.html` in dev | — |
 | **Tests** | `AuthControllerTest` — 4 `@WebMvcTest` cases (valid login, bad creds, missing username, missing password) | — |
@@ -145,6 +147,7 @@ project-pulse-app/
 | **Sections** | `/sections` | Admin | Full CRUD + active week management dialog |
 | **Rubrics** | `/rubrics` | Admin | Create/delete rubrics; add/edit/delete criteria per rubric |
 | **Users** | `/users` | Admin | Role-tabbed table (paginated), Add/Edit/Disable dialogs |
+| **Profile** | `/profile` | All | Edit own firstName, lastName, email via `PUT /users/me` |
 | **Navigation** | `App.vue` | All | Role-filtered drawer, JWT-aware, logout |
 
 ---
@@ -186,6 +189,10 @@ project-pulse-app/
 | # | Area | Task | Notes |
 |---|------|------|-------|
 | 13 | **Both** | Azure deployment | Add `.github/workflows/deploy.yml`. Configure GitHub secrets: `AZURE_CREDENTIALS`, `DB_URL`, `DB_PASSWORD`, `JWT_SECRET_KEY` |
+| ✅ UC-26 | **Both** | ~~Student edits own profile~~ | Done — `PUT /users/me` + `UserUpdateMeRequest`; `ProfilePage.vue` at `/profile`, nav item for all roles |
+| ✅ UC-27 | **Both** | ~~Fix WAR Activities (add/edit/delete)~~ | Done — 11 correct categories, added `activityName`/`plannedHours`/`actualHours`/`status`, `PUT` + `DELETE /activities/{id}`, `ActivityStatus` enum, V3 migration |
+| ✅ UC-28 | **Both** | ~~Peer evaluation comments~~ | Done — `publicComment` + `privateComment` per score in `EvaluationScore`; V4 migration; comment fields in evaluate dialog |
+| ✅ UC-29 | **Both** | ~~Student score report anonymized~~ | Done — `/my-scores` returns `MyScoreDto` (no evaluator names, no private comments); "My Scores" tab shows per-criterion averages and public comments only |
 
 ---
 
@@ -198,12 +205,14 @@ All responses use: `{ flag: boolean, code: number, message: string, data: T }`
 POST   /api/v1/auth/login          { username, password } → { userId, username, role, token }
 ```
 
-### Users (Admin only for write)
+### Users (Admin only for write, except /me)
 ```
 GET    /api/v1/users               → UserDto[]
 GET    /api/v1/users/{id}          → UserDto
 POST   /api/v1/users               { username, email, password, firstName, lastName, role }
 PUT    /api/v1/users/{id}          { firstName, lastName, email, enabled }
+DELETE /api/v1/users/{id}          (soft-delete — sets enabled=false)
+PUT    /api/v1/users/me            { firstName, lastName, email }  (any authenticated user)
 ```
 
 ### Sections (Admin for write)
@@ -238,22 +247,25 @@ POST   /api/v1/rubrics/{id}/criteria  { name, description, maxScore, displayOrde
 PUT    /api/v1/rubrics/{id}/criteria/{cid}
 ```
 
-### Activities (Student submit)
+### Activities (Student submit/edit/delete)
 ```
-POST   /api/v1/activities          { teamId, weekId, category, description, hours }
+POST   /api/v1/activities          { teamId, weekId, activityName, category, description, plannedHours, actualHours?, status }
+PUT    /api/v1/activities/{id}     { activityName, category, description, plannedHours, actualHours?, status }  (Student JWT — own only)
+DELETE /api/v1/activities/{id}                             (Student JWT — own only)
 GET    /api/v1/activities/my                               (Student JWT)
 GET    /api/v1/activities/team/{id}                        (Admin/Instructor)
 GET    /api/v1/activities/team/{id}/week/{wid}
 GET    /api/v1/activities                                  (Admin)
 ```
-Categories: `DEVELOPMENT`, `TESTING`, `DOCUMENTATION`, `DESIGN`, `MEETING`, `BUG_FIX`, `OTHER`
+Categories: `DEVELOPMENT`, `TESTING`, `BUGFIX`, `COMMUNICATION`, `DOCUMENTATION`, `DESIGN`, `PLANNING`, `LEARNING`, `DEPLOYMENT`, `SUPPORT`, `MISCELLANEOUS`
+Statuses: `IN_PROGRESS`, `UNDER_TESTING`, `DONE`
 
 ### Evaluations (Student submit)
 ```
-POST   /api/v1/evaluations         { evaluateeId, teamId, weekId, scores: [{criterionId, score}] }
+POST   /api/v1/evaluations         { evaluateeId, teamId, weekId, scores: [{criterionId, score, publicComment?, privateComment?}] }
 GET    /api/v1/evaluations/my                              (Student JWT — evals I submitted)
-GET    /api/v1/evaluations/my-scores                       (Student JWT — evals others gave me)
-GET    /api/v1/evaluations/team/{tid}/week/{wid}           (Admin/Instructor)
+GET    /api/v1/evaluations/my-scores                       (Student JWT — returns MyScoreDto[]: no evaluator names, no privateComment)
+GET    /api/v1/evaluations/team/{tid}/week/{wid}           (Admin/Instructor — full EvaluationDto including all comments)
 GET    /api/v1/evaluations/grade/team/{tid}/week/{wid}/student/{sid}
 ```
 

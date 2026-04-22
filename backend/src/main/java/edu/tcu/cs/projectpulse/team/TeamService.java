@@ -111,6 +111,13 @@ public class TeamService {
         return TeamDto.from(teamRepository.save(team));
     }
 
+    public TeamDto removeInstructor(Long teamId, Long instructorId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));
+        team.getInstructors().removeIf(u -> u.getId().equals(instructorId));
+        return TeamDto.from(teamRepository.save(team));
+    }
+
     public TeamDto assignRubric(Long teamId, Long rubricId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));

@@ -73,6 +73,12 @@ public class TeamController {
         return Result.success("Instructor assigned", teamService.assignInstructor(id, instructorId));
     }
 
+    @DeleteMapping("/{id}/instructor/{instructorId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<TeamDto> removeInstructor(@PathVariable Long id, @PathVariable Long instructorId) {
+        return Result.success("Instructor removed from team", teamService.removeInstructor(id, instructorId));
+    }
+
     @PutMapping("/{id}/rubric/{rubricId}")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<TeamDto> assignRubric(@PathVariable Long id, @PathVariable Long rubricId) {

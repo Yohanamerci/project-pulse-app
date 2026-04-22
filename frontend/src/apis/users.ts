@@ -45,6 +45,10 @@ export async function updateUser(
   return response.data.data
 }
 
+export async function deleteUser(id: number): Promise<void> {
+  await request.delete(`/users/${id}`)
+}
+
 export async function updateMe(data: {
   firstName: string
   lastName: string

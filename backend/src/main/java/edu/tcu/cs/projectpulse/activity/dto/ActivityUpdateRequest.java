@@ -2,15 +2,13 @@ package edu.tcu.cs.projectpulse.activity.dto;
 
 import edu.tcu.cs.projectpulse.activity.ActivityCategory;
 import edu.tcu.cs.projectpulse.activity.ActivityStatus;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record ActivityUpdateRequest(
-        @NotBlank String activityName,
+        String activityName,        // nullable — service falls back to existing value
         @NotNull ActivityCategory category,
-        @NotBlank String description,
-        @NotNull @DecimalMin("0.5") Double plannedHours,
+        String description,         // nullable — service falls back to existing value
+        Double plannedHours,        // nullable — service falls back to existing value
         Double actualHours,
         @NotNull ActivityStatus status
 ) {}

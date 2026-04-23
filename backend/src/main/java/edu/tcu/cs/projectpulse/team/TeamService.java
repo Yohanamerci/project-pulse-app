@@ -82,6 +82,13 @@ public class TeamService {
         return TeamDto.from(teamRepository.save(team));
     }
 
+    public TeamDto update(Long id, String name) {
+        Team team = teamRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + id));
+        team.setName(name);
+        return TeamDto.from(teamRepository.save(team));
+    }
+
     public TeamDto addStudent(Long teamId, Long studentId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));

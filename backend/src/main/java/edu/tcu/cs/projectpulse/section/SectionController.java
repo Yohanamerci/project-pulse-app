@@ -29,23 +29,32 @@ public class SectionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<SectionDto> createSection(@Valid @RequestBody SectionRequest req) {
         return Result.success("Section created", sectionService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<SectionDto> updateSection(@PathVariable Long id,
                                             @Valid @RequestBody SectionRequest req) {
         return Result.success("Section updated", sectionService.update(id, req));
     }
 
-    @PostMapping("/{id}/active-week")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<ActiveWeekDto> setActiveWeek(@PathVariable Long id,
-                                               @Valid @RequestBody ActiveWeekRequest req) {
-        return Result.success("Active week set", sectionService.setActiveWeek(id, req));
+    /** Save (create or update) a week's dates — does NOT activate it. */
+    @PutMapping("/{id}/weeks")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<ActiveWeekDto> saveWeek(@PathVariable Long id,
+                                          @Valid @RequestBody ActiveWeekRequest req) {
+        return Result.success("Week saved", sectionService.saveWeek(id, req));
+    }
+
+    /** Activate a previously saved week (deactivates all others, notifies students). */
+    @PostMapping("/{id}/weeks/{weekNumber}/activate")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<ActiveWeekDto> activateWeek(@PathVariable Long id,
+                                              @PathVariable Integer weekNumber) {
+        return Result.success("Week activated", sectionService.activateWeek(id, weekNumber));
     }
 
     @GetMapping("/{id}/active-week")

@@ -62,6 +62,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/students/:id',
+      name: 'student-performance',
+      component: () => import('@/pages/StudentPerformancePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard',
     },

@@ -13,4 +13,6 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByTeamIdAndWeekId(Long teamId, Long weekId);
 
     List<Activity> findByStudentIdAndWeekId(Long studentId, Long weekId);
+
+    void deleteByStudentId(Long studentId);
 }

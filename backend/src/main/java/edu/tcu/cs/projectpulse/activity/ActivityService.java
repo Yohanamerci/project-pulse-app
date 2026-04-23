@@ -70,10 +70,22 @@ public class ActivityService {
             throw new IllegalStateException("You can only edit your own activities.");
         }
 
-        activity.setActivityName(req.activityName());
+        // Apply provided fields; fall back to the persisted value when blank/zero
+        // (guards against legacy seed data that never had activityName / plannedHours)
+        String newName = req.activityName();
+        activity.setActivityName((newName != null && !newName.isBlank())
+                ? newName : activity.getActivityName());
+
         activity.setCategory(req.category());
-        activity.setDescription(req.description());
-        activity.setPlannedHours(req.plannedHours());
+
+        String newDesc = req.description();
+        activity.setDescription((newDesc != null && !newDesc.isBlank())
+                ? newDesc : activity.getDescription());
+
+        Double newHours = req.plannedHours();
+        activity.setPlannedHours((newHours != null && newHours >= 0.5)
+                ? newHours : activity.getPlannedHours());
+
         activity.setActualHours(req.actualHours());
         activity.setStatus(req.status());
 

@@ -1,6 +1,8 @@
 package edu.tcu.cs.projectpulse.shared;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.security.access.AccessDeniedException;
@@ -11,20 +13,21 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Result<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
-            errors.put(fe.getField(), fe.getDefaultMessage());
-        }
-        return Result.error(StatusCode.INVALID_ARGUMENT, "Validation failed");
+    public Result<Void> handleValidationErrors(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return Result.error(StatusCode.INVALID_ARGUMENT,
+                message.isEmpty() ? "Validation failed" : message);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
@@ -67,6 +70,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleGeneral(Exception ex) {
-        return Result.error(StatusCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
+        log.error("[500] {} : {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
+        String detail = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+        return Result.error(StatusCode.INTERNAL_SERVER_ERROR, detail);
     }
 }

@@ -2,4 +2,6 @@ package edu.tcu.cs.projectpulse.evaluation;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface EvaluationScoreRepository extends JpaRepository<EvaluationScore, Long> {}
+public interface EvaluationScoreRepository extends JpaRepository<EvaluationScore, Long> {
+    void deleteByEvaluationId(Long evaluationId);
+}

@@ -71,7 +71,8 @@ project-pulse-app/
 │       ├── V1__baseline.sql    # Schema (tables + admin user)
 │       ├── V2__seed_data.sql   # Sample data for dev/testing
 │       ├── V3__fix_activity_fields.sql  # Fixes category enum→VARCHAR, adds activityName/plannedHours/actualHours/status
-│       └── V4__add_evaluation_comments.sql  # Adds publicComment/privateComment to evaluation_scores
+│       ├── V4__add_evaluation_comments.sql  # Adds publicComment/privateComment to evaluation_scores
+│       └── V5__fix_seed_activity_data.sql   # Backfills activityName from description, plannedHours from actualHours (fixes 400 on WAR update for seed data)
 │
 ├── frontend/src/
 │   ├── pages/           # Route-level views (one per feature)
@@ -110,7 +111,7 @@ project-pulse-app/
 |------|-------------|-------------|
 | BR-1 | A team must have at least one assigned instructor | `TeamService.create()` |
 | BR-2 | Fall semester: weeks 5–15 only. Spring: weeks 1–15 only | `SectionService.setActiveWeek()` |
-| BR-3 | Peer evaluations cannot be edited once submitted | `EvaluationService.submit()` |
+| BR-3 | ~~Peer evaluations cannot be edited once submitted~~ → **UC-28 override**: Students can edit their submitted evaluation any time before the active week closes | `EvaluationService.resubmit()` |
 | BR-4 | WAR/evaluation submissions only allowed during the active week | `ActivityService.submit()`, `EvaluationService.submit()` |
 | BR-5 | Students can only view their own evaluation scores | Frontend routing + `EvaluationController /my-scores` |
 
@@ -126,11 +127,11 @@ project-pulse-app/
 | **Users** | `GET /users`, `GET /users/{id}`, `POST /users`, `PUT /users/{id}`, `DELETE /users/{id}`, `PUT /users/me` | Admin-only create/update; any authenticated user can call `/me` |
 | **Sections** | `GET/POST/PUT /sections`, `GET/POST /sections/{id}/active-week`, `GET /sections/{id}/active-weeks` | BR-2 |
 | **Rubrics** | `GET/POST/PUT /rubrics`, `GET/POST/PUT /rubrics/{id}/criteria` | — |
-| **Teams** | `GET/POST /teams`, `GET /teams/{id}`, `GET /teams/section/{id}`, `GET /teams/my-team`, `POST/DELETE /teams/{id}/students/{sid}`, `PUT /teams/{id}/instructor/{iid}`, `PUT /teams/{id}/rubric/{rid}` | BR-1 |
+| **Teams** | `GET/POST/PUT /teams`, `GET /teams/{id}`, `GET /teams/section/{id}`, `GET /teams/my-team`, `POST/DELETE /teams/{id}/students/{sid}`, `PUT/DELETE /teams/{id}/instructor/{iid}`, `PUT /teams/{id}/rubric/{rid}` | BR-1 |
 | **Activities** | `POST /activities`, `PUT /activities/{id}`, `DELETE /activities/{id}`, `GET /activities/my`, `GET /activities/team/{id}`, `GET /activities/team/{id}/week/{id}`, `GET /activities` | BR-4 |
-| **Evaluations** | `POST /evaluations`, `GET /evaluations/my`, `GET /evaluations/my-scores`, `GET /evaluations/team/{tid}/week/{wid}`, `GET /evaluations/grade/team/{tid}/week/{wid}/student/{sid}` — scores include `publicComment` + `privateComment`; `/my-scores` returns `MyScoreDto` (no evaluator names, no private comments) | BR-3, BR-4, BR-5 |
+| **Evaluations** | `POST /evaluations` (submit or re-submit if active week still open — UC-28), `POST /evaluations/{id}/resubmit` (explicit edit), `GET /evaluations/my`, `GET /evaluations/my-scores`, `GET /evaluations/team/{tid}/week/{wid}`, `GET /evaluations/grade/team/{tid}/week/{wid}/student/{sid}` | UC-28, BR-4, BR-5 |
 | **Error Handling** | GlobalExceptionHandler handles: validation (400), not found (404), bad credentials (401), forbidden (403), illegal state/argument (400), catch-all (500) | All domains |
-| **DB Migrations** | Flyway V1 (schema) + V2 (seed data, `INSERT IGNORE` idempotent) + V3 (fix activity fields) + V4 (evaluation comments) | — |
+| **DB Migrations** | Flyway V1 (schema) + V2 (seed data, `INSERT IGNORE` idempotent) + V3 (fix activity fields) + V4 (evaluation comments) + V5 (backfill seed activityName/plannedHours) | — |
 | **Email Notifications** | `NotificationService` (async) — emails all section students when active week opens. View in Mailpit at http://localhost:8025 | — |
 | **Swagger/OpenAPI** | `springdoc-openapi-starter-webmvc-ui` — available at `/swagger-ui.html` in dev | — |
 | **Tests** | `AuthControllerTest` — 4 `@WebMvcTest` cases (valid login, bad creds, missing username, missing password) | — |
@@ -146,9 +147,10 @@ project-pulse-app/
 | **Teams** | `/teams` | All | Student: my team card; Instructor: read-only list; Admin: full CRUD + member + rubric assignment |
 | **Sections** | `/sections` | Admin | Full CRUD + active week management dialog |
 | **Rubrics** | `/rubrics` | Admin | Create/delete rubrics; add/edit/delete criteria per rubric |
-| **Users** | `/users` | Admin | Role-tabbed table (paginated), Add/Edit/Disable dialogs |
+| **Users** | `/users` | Admin + Instructor | Admin: full CRUD + role-tabbed table; Instructor: read-only (Students tab default, view details — UC-15, UC-16) |
 | **Profile** | `/profile` | All | Edit own firstName, lastName, email via `PUT /users/me` |
-| **Navigation** | `App.vue` | All | Role-filtered drawer, JWT-aware, logout |
+| **Student Performance** | `/students/:id` | Admin + Instructor | Dedicated performance dashboard: WAR history, grade history, summary stats — accessible by clicking student names in TeamsPage/UsersPage |
+| **Navigation** | `App.vue` | All | Role-filtered drawer — Sections + Rubrics now visible to Instructors |
 
 ---
 
@@ -184,6 +186,31 @@ project-pulse-app/
 | ✅ 14 | **Backend** | ~~Integration tests (Auth)~~ | Done — `AuthControllerTest` with 4 `@WebMvcTest` cases. Full integration tests for Activity/Evaluation require running DB. |
 | ✅ 15 | **Frontend** | ~~Pagination on data tables~~ | Done — `items-per-page` added to Activities, Evaluations overview, and Users tables |
 
+### Additional Features (UC-aligned)
+
+| # | Area | Task | Notes |
+|---|------|------|-------|
+| ✅ | **Frontend** | ~~Predefined criteria templates in rubric builder~~ | 5 built-in defaults (Technical Contribution, Collaboration, Meeting Attendance, Task Completion, Code Quality); custom-added criteria auto-save as templates via localStorage |
+| ✅ | **Both** | ~~UC-28: Students can edit submitted evaluations~~ | `POST /evaluations` idempotently re-submits if active week is open; `POST /evaluations/{id}/resubmit` explicit edit. Frontend shows "Edit" (amber) button instead of "Evaluate" once submitted |
+| ✅ | **Both** | ~~UC-17: Physical delete for students~~ | `DELETE /users/{id}` now physically removes STUDENTs + cascades their WAR activities and peer evaluations. Instructors/Admins are soft-deactivated (UC-23). Confirmation dialog shows role-appropriate warning. |
+| ✅ | **Both** | ~~UC-15/16: Instructors can find and view students~~ | `GET /users` now allows INSTRUCTOR role; Users nav item visible for instructors; page is read-only for instructors (no create/edit/delete); defaults to Students tab |
+
+### Instructor Features — Completed
+
+| # | Area | Task | Notes |
+|---|------|------|-------|
+| ✅ | **Backend** | Team write access for INSTRUCTOR | `POST /teams`, `PUT /teams/{id}` (rename), `POST/DELETE /teams/{id}/students/{sid}`, `PUT/DELETE /teams/{id}/instructor/{iid}`, `PUT /teams/{id}/rubric/{rid}` now allow INSTRUCTOR. `DELETE /teams/{id}` remains ADMIN-only |
+| ✅ | **Backend** | Section create/edit for INSTRUCTOR | `POST /sections`, `PUT /sections/{id}`, `POST /sections/{id}/active-week` allow INSTRUCTOR. `DELETE /sections/{id}` remains ADMIN-only |
+| ✅ | **Backend** | Rubric criteria management for INSTRUCTOR | `POST/PUT/DELETE /rubrics/{id}/criteria` and `PUT/DELETE /rubrics/criteria/{cid}` allow INSTRUCTOR. Rubric create/delete remains ADMIN-only |
+| ✅ | **Backend** | Edit student info for INSTRUCTOR | `PUT /users/{id}` now allows INSTRUCTOR, but service-level guard restricts instructors to editing STUDENT accounts only. Instructors cannot change `enabled` status. |
+| ✅ | **Frontend** | Teams: Instructor full manage | Create Team + Manage dialog (add/remove students, assign instructors/rubric) + Rename button — all visible to INSTRUCTOR. Delete button hidden. |
+| ✅ | **Frontend** | Sections: Instructor create/edit | Create Section + Edit + Set Active Week visible to INSTRUCTOR. Delete hidden for instructors. |
+| ✅ | **Frontend** | Rubrics: Instructor criteria | Criteria add/edit/delete visible to INSTRUCTOR. Create Rubric + Delete Rubric hidden. |
+| ✅ | **Frontend** | Users: Instructor edits students | Edit button (pencil) shown for STUDENT rows when logged in as INSTRUCTOR. "Account Active" toggle hidden for instructors. |
+| ✅ | **Frontend** | Student Performance Dashboard | `/students/:id` page with WAR history, grade history, summary stats. Accessible from "View Performance" button in UsersPage view dialog, and from student name chips in TeamsPage manage dialog. |
+| ✅ | **Frontend** | Section Evaluations with comments | Grade Report tab: each student card is expandable, showing individual peer evaluations with per-criterion scores, public comments, and private comments (instructor-only field visible to instructor). |
+| ✅ | **Both** | 500 error on evaluation resubmit | `EvaluationScoreRepository.deleteByEvaluationId()` + flush before clearing collection — fixes Hibernate `PersistentBag` orphanRemoval ordering issue. |
+
 ### Still Open
 
 | # | Area | Task | Notes |
@@ -217,13 +244,13 @@ All responses use: `{ flag: boolean, code: number, message: string, data: T }`
 POST   /api/v1/auth/login          { username, password } → { userId, username, role, token }
 ```
 
-### Users (Admin only for write, except /me)
+### Users
 ```
-GET    /api/v1/users               → UserDto[]
-GET    /api/v1/users/{id}          → UserDto
-POST   /api/v1/users               { username, email, password, firstName, lastName, role }
-PUT    /api/v1/users/{id}          { firstName, lastName, email, enabled }
-DELETE /api/v1/users/{id}          (soft-delete — sets enabled=false)
+GET    /api/v1/users               → UserDto[]                   (Admin + Instructor)
+GET    /api/v1/users/{id}          → UserDto                     (any authenticated)
+POST   /api/v1/users               { username, email, password, firstName, lastName, role }  (Admin)
+PUT    /api/v1/users/{id}          { firstName, lastName, email, enabled }  (Admin); Instructor may only edit STUDENT accounts; enabled flag ignored for Instructors
+DELETE /api/v1/users/{id}          STUDENT → physical delete (cascades WAR + peer evals); INSTRUCTOR/ADMIN → soft-deactivate (enabled=false)  (Admin only)
 PUT    /api/v1/users/me            { firstName, lastName, email }  (any authenticated user)
 ```
 
@@ -237,18 +264,20 @@ POST   /api/v1/sections/{id}/active-week  { weekNumber, startDate, endDate }
 GET    /api/v1/sections/{id}/active-weeks
 ```
 
-### Teams (Admin for write, Instructor read)
+### Teams (Admin + Instructor for write, Student read-own)
 ```
 GET    /api/v1/teams               → TeamDto[]
 GET    /api/v1/teams/{id}          → TeamDto
 GET    /api/v1/teams/section/{id}  → TeamDto[]
 GET    /api/v1/teams/my-team       → TeamDto  (Student JWT)
-POST   /api/v1/teams               { name, sectionId, rubricId, instructorId }
-POST   /api/v1/teams/{id}/students/{sid}
-DELETE /api/v1/teams/{id}/students/{sid}
-PUT    /api/v1/teams/{id}/instructor/{iid}
-DELETE /api/v1/teams/{id}/instructor/{iid}
-PUT    /api/v1/teams/{id}/rubric/{rid}
+POST   /api/v1/teams               { name, sectionId, rubricId }          (Admin/Instructor)
+PUT    /api/v1/teams/{id}          { name }                                (Admin/Instructor — rename)
+POST   /api/v1/teams/{id}/students/{sid}                                   (Admin/Instructor)
+DELETE /api/v1/teams/{id}/students/{sid}                                   (Admin/Instructor)
+PUT    /api/v1/teams/{id}/instructor/{iid}                                 (Admin/Instructor)
+DELETE /api/v1/teams/{id}/instructor/{iid}                                 (Admin/Instructor)
+PUT    /api/v1/teams/{id}/rubric/{rid}                                     (Admin/Instructor)
+DELETE /api/v1/teams/{id}                                                  (Admin only)
 ```
 
 ### Rubrics (Admin for write)
@@ -274,9 +303,10 @@ GET    /api/v1/activities                                  (Admin)
 Categories: `DEVELOPMENT`, `TESTING`, `BUGFIX`, `COMMUNICATION`, `DOCUMENTATION`, `DESIGN`, `PLANNING`, `LEARNING`, `DEPLOYMENT`, `SUPPORT`, `MISCELLANEOUS`
 Statuses: `IN_PROGRESS`, `UNDER_TESTING`, `DONE`
 
-### Evaluations (Student submit)
+### Evaluations (Student submit / edit)
 ```
-POST   /api/v1/evaluations         { evaluateeId, teamId, weekId, scores: [{criterionId, score, publicComment?, privateComment?}] }
+POST   /api/v1/evaluations         { evaluateeId, teamId, weekId, scores: [...] }  (submit new OR re-submit if active week open — UC-28)
+POST   /api/v1/evaluations/{id}/resubmit  same payload — explicit edit of existing evaluation
 GET    /api/v1/evaluations/my                              (Student JWT — evals I submitted)
 GET    /api/v1/evaluations/my-scores                       (Student JWT — returns MyScoreDto[]: no evaluator names, no privateComment)
 GET    /api/v1/evaluations/team/{tid}/week/{wid}           (Admin/Instructor — full EvaluationDto including all comments)
@@ -353,6 +383,8 @@ main
 | 10 | ~~Low~~ | ~~Evaluations overview shows "Select a team and week" even when team+week are selected but no data exists~~ | ✅ Fixed — `no-data-text` is dynamic: context-aware message when filters applied |
 | 11 | ~~Low~~ | ~~Activity update with invalid enum value returns unhandled 500~~ | ✅ Fixed — `GlobalExceptionHandler` now handles `HttpMessageConversionException` → 400 |
 | 12 | ~~Low~~ | ~~Evaluations page subtitle says "Submit peer evaluations" for instructors~~ | ✅ Fixed — subtitle is role-aware: different text for students vs instructor/admin |
+| 13 | ~~High~~ | ~~Admin "delete student" was soft-delete; student still appeared in team with WAR/evals~~ | ✅ Fixed — `DELETE /users/{id}` now physically deletes STUDENT records + cascades activities and peer evaluations (UC-17). Instructors are soft-deactivated (UC-23). |
+| 14 | ~~Medium~~ | ~~Instructors could not view students (UsersPage Admin-only)~~ | ✅ Fixed — `GET /users` now allows INSTRUCTOR role; Users nav item shows for instructors; page is read-only (no add/edit/delete buttons) for instructor role |
 
 ---
 

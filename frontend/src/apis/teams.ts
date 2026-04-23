@@ -73,6 +73,11 @@ export async function removeInstructor(teamId: number, instructorId: number): Pr
   return response.data.data
 }
 
+export async function updateTeam(teamId: number, name: string): Promise<TeamDto> {
+  const response = await request.put<{ flag: boolean; code: number; message: string; data: TeamDto }>(`/teams/${teamId}`, { name })
+  return response.data.data
+}
+
 export async function deleteTeam(teamId: number): Promise<void> {
   await request.delete(`/teams/${teamId}`)
 }

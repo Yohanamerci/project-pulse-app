@@ -14,7 +14,7 @@ request.interceptors.request.use((config) => {
   return config
 })
 
-// Redirect to login on 401
+// Redirect to login on 401; surface backend message for all other errors
 request.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -22,8 +22,11 @@ request.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       window.location.href = '/login'
+      return Promise.reject(error)
     }
-    return Promise.reject(error)
+    // Extract the backend's { message } field so catch blocks see the real error
+    const backendMessage: string | undefined = error.response?.data?.message
+    return Promise.reject(new Error(backendMessage ?? error.message))
   }
 )
 

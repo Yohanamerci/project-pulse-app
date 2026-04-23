@@ -50,37 +50,47 @@ public class TeamController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> createTeam(@Valid @RequestBody TeamRequest req) {
         return Result.success("Team created", teamService.create(req));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<TeamDto> updateTeam(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        String name = body.get("name");
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Team name is required");
+        }
+        return Result.success("Team updated", teamService.update(id, name));
+    }
+
     @PostMapping("/{id}/students/{studentId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> addStudent(@PathVariable Long id, @PathVariable Long studentId) {
         return Result.success("Student added to team", teamService.addStudent(id, studentId));
     }
 
     @DeleteMapping("/{id}/students/{studentId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> removeStudent(@PathVariable Long id, @PathVariable Long studentId) {
         return Result.success("Student removed from team", teamService.removeStudent(id, studentId));
     }
 
     @PutMapping("/{id}/instructor/{instructorId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> assignInstructor(@PathVariable Long id, @PathVariable Long instructorId) {
         return Result.success("Instructor assigned", teamService.assignInstructor(id, instructorId));
     }
 
     @DeleteMapping("/{id}/instructor/{instructorId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> removeInstructor(@PathVariable Long id, @PathVariable Long instructorId) {
         return Result.success("Instructor removed from team", teamService.removeInstructor(id, instructorId));
     }
 
     @PutMapping("/{id}/rubric/{rubricId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<TeamDto> assignRubric(@PathVariable Long id, @PathVariable Long rubricId) {
         return Result.success("Rubric assigned to team", teamService.assignRubric(id, rubricId));
     }

@@ -23,7 +23,7 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<List<UserDto>> getAllUsers() {
         return Result.success(userService.findAll());
     }
@@ -40,9 +40,10 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<UserDto> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest req) {
-        return Result.success("User updated", userService.updateUser(id, req));
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    public Result<UserDto> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest req,
+                                      @AuthenticationPrincipal Jwt jwt) {
+        return Result.success("User updated", userService.updateUser(id, req, jwt.getSubject()));
     }
 
     @PutMapping("/me")
@@ -54,8 +55,8 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public Result<Void> disableUser(@PathVariable Long id) {
-        userService.disableUser(id);
-        return Result.success("User disabled", null);
+    public Result<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return Result.success("User deleted", null);
     }
 }

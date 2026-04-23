@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import {
   getRubrics,
   createRubric,
@@ -11,6 +12,38 @@ import {
   type CriterionDto,
 } from '@/apis/rubrics'
 import { getSections, type SectionDto } from '@/apis/sections'
+
+const authStore = useAuthStore()
+
+// ── Predefined criteria templates ──────────────────────────────────────────
+const DEFAULT_CRITERIA = [
+  { name: 'Technical Contribution', description: 'Quality and quantity of technical work completed this week', maxScore: 10 },
+  { name: 'Collaboration', description: 'Willingness to help teammates and communicate effectively', maxScore: 10 },
+  { name: 'Meeting Attendance', description: 'Attendance and participation in scheduled team meetings', maxScore: 5 },
+  { name: 'Task Completion', description: 'Delivered on assigned tasks and met agreed deadlines', maxScore: 10 },
+  { name: 'Code Quality / Artifacts', description: 'Code reviews, documentation, and deliverable quality', maxScore: 10 },
+]
+
+const STORAGE_KEY = 'projectpulse_criteria_templates'
+
+function loadTemplates(): typeof DEFAULT_CRITERIA {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      const custom = JSON.parse(stored) as typeof DEFAULT_CRITERIA
+      const defaultNames = new Set(DEFAULT_CRITERIA.map((c) => c.name))
+      const extras = custom.filter((c) => !defaultNames.has(c.name))
+      return [...DEFAULT_CRITERIA, ...extras]
+    }
+  } catch { /* ignore */ }
+  return [...DEFAULT_CRITERIA]
+}
+
+function saveTemplates(templates: typeof DEFAULT_CRITERIA) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(templates)) } catch { /* ignore */ }
+}
+
+const criteriaTemplates = ref(loadTemplates())
 
 const rubrics = ref<RubricDto[]>([])
 const sections = ref<SectionDto[]>([])
@@ -92,7 +125,7 @@ async function handleDeleteRubric(rubric: RubricDto) {
 // ── Criteria Management Dialog ──────────────────────────────────────────────
 const criteriaDialog = ref(false)
 const activeCriteriaRubric = ref<RubricDto | null>(null)
-const criterionFormRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
+const criterionFormRef = ref<{ validate: () => Promise<{ valid: boolean }>; reset: () => void } | null>(null)
 const addingCriterion = ref(false)
 const criterionForm = ref({ name: '', description: '', maxScore: 10 })
 const editingCriterion = ref<CriterionDto | null>(null)
@@ -113,6 +146,11 @@ function startEditCriterion(c: CriterionDto) {
   criterionForm.value = { name: c.name, description: c.description ?? '', maxScore: c.maxScore }
 }
 
+function applyTemplate(t: { name: string; description: string; maxScore: number }) {
+  criterionForm.value = { name: t.name, description: t.description, maxScore: t.maxScore }
+  editingCriterion.value = null
+}
+
 async function handleSaveCriterion() {
   if (!criterionFormRef.value || !activeCriteriaRubric.value) return
   const { valid } = await criterionFormRef.value.validate()
@@ -131,6 +169,16 @@ async function handleSaveCriterion() {
     } else {
       await addCriterion(activeCriteriaRubric.value.id, payload)
       snackbarMessage.value = 'Criterion added.'
+      // Persist as a reusable template if it's new
+      const exists = criteriaTemplates.value.some((t) => t.name === payload.name)
+      if (!exists) {
+        criteriaTemplates.value = [...criteriaTemplates.value, {
+          name: payload.name,
+          description: payload.description ?? '',
+          maxScore: payload.maxScore,
+        }]
+        saveTemplates(criteriaTemplates.value)
+      }
     }
     snackbar.value = true
     resetCriterionForm()
@@ -175,12 +223,13 @@ onMounted(loadAll)
           <div>
             <h1 class="text-h5 font-weight-bold">Rubrics</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              Create and manage peer evaluation rubrics and scoring criteria
+              <template v-if="authStore.isAdmin">Create and manage peer evaluation rubrics and scoring criteria</template>
+              <template v-else>Manage scoring criteria within existing rubrics</template>
             </p>
           </div>
         </div>
       </v-col>
-      <v-col cols="auto">
+      <v-col v-if="authStore.isAdmin" cols="auto">
         <v-btn color="purple" prepend-icon="mdi-plus" @click="openCreateDialog">
           Create Rubric
         </v-btn>
@@ -275,6 +324,7 @@ onMounted(loadAll)
             </v-btn>
             <v-spacer />
             <v-btn
+              v-if="authStore.isAdmin"
               icon="mdi-delete-outline"
               variant="text"
               size="small"
@@ -386,6 +436,24 @@ onMounted(loadAll)
             </v-list-item>
           </v-list>
           <p v-else class="text-body-2 text-disabled mb-4">No criteria added yet.</p>
+
+          <v-divider class="mb-4" />
+
+          <!-- Quick-add from templates -->
+          <p class="text-subtitle-2 font-weight-medium mb-2">Quick Add from Templates</p>
+          <div class="d-flex flex-wrap ga-2 mb-4">
+            <v-btn
+              v-for="t in criteriaTemplates"
+              :key="t.name"
+              size="x-small"
+              variant="tonal"
+              color="purple"
+              :disabled="activeCriteriaRubric.criteria.some((c) => c.name === t.name)"
+              @click="applyTemplate(t)"
+            >
+              {{ t.name }} ({{ t.maxScore }}pts)
+            </v-btn>
+          </div>
 
           <v-divider class="mb-4" />
 

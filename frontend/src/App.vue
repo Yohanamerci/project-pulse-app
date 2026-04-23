@@ -92,9 +92,9 @@ const allItems = [
   { title: 'Activities',  icon: 'mdi-calendar-check',   route: '/activities',  roles: ['ADMIN','INSTRUCTOR','STUDENT'] },
   { title: 'Evaluations', icon: 'mdi-star-check',        route: '/evaluations', roles: ['ADMIN','INSTRUCTOR','STUDENT'] },
   { title: 'Teams',       icon: 'mdi-account-multiple',  route: '/teams',       roles: ['ADMIN','INSTRUCTOR','STUDENT'] },
-  { title: 'Sections',    icon: 'mdi-school',            route: '/sections',    roles: ['ADMIN'] },
-  { title: 'Users',       icon: 'mdi-account-cog',       route: '/users',       roles: ['ADMIN'] },
-  { title: 'Rubrics',    icon: 'mdi-clipboard-list',    route: '/rubrics',     roles: ['ADMIN'] },
+  { title: 'Sections',    icon: 'mdi-school',            route: '/sections',    roles: ['ADMIN', 'INSTRUCTOR'] },
+  { title: 'Users',       icon: 'mdi-account-cog',       route: '/users',       roles: ['ADMIN', 'INSTRUCTOR'] },
+  { title: 'Rubrics',    icon: 'mdi-clipboard-list',    route: '/rubrics',     roles: ['ADMIN', 'INSTRUCTOR'] },
   { title: 'Edit Profile', icon: 'mdi-account-edit',   route: '/profile',     roles: ['ADMIN','INSTRUCTOR','STUDENT'] },
 ]
 

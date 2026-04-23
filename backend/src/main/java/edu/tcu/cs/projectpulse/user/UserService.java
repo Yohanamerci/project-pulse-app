@@ -1,5 +1,7 @@
 package edu.tcu.cs.projectpulse.user;
 
+import edu.tcu.cs.projectpulse.activity.ActivityRepository;
+import edu.tcu.cs.projectpulse.evaluation.PeerEvaluationRepository;
 import edu.tcu.cs.projectpulse.user.dto.CreateUserRequest;
 import edu.tcu.cs.projectpulse.user.dto.UpdateUserRequest;
 import edu.tcu.cs.projectpulse.user.dto.UserUpdateMeRequest;
@@ -16,10 +18,17 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityRepository activityRepository;
+    private final PeerEvaluationRepository peerEvaluationRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       ActivityRepository activityRepository,
+                       PeerEvaluationRepository peerEvaluationRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.activityRepository = activityRepository;
+        this.peerEvaluationRepository = peerEvaluationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -50,13 +59,22 @@ public class UserService {
         return UserDto.from(userRepository.save(user));
     }
 
-    public UserDto updateUser(Long id, UpdateUserRequest req) {
+    public UserDto updateUser(Long id, UpdateUserRequest req, String callerUsername) {
+        User caller = userRepository.findByUsername(callerUsername)
+                .orElseThrow(() -> new EntityNotFoundException("Caller not found: " + callerUsername));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
+        // Instructors may only edit student accounts
+        if (caller.getRole() == Role.INSTRUCTOR && user.getRole() != Role.STUDENT) {
+            throw new IllegalStateException("Instructors can only modify student accounts.");
+        }
         if (req.firstName() != null) user.setFirstName(req.firstName());
         if (req.lastName() != null) user.setLastName(req.lastName());
         if (req.email() != null) user.setEmail(req.email());
-        if (req.enabled() != null) user.setEnabled(req.enabled());
+        // Only admins can change account enabled status
+        if (req.enabled() != null && caller.getRole() == Role.ADMIN) {
+            user.setEnabled(req.enabled());
+        }
         return UserDto.from(userRepository.save(user));
     }
 
@@ -69,11 +87,25 @@ public class UserService {
         return UserDto.from(userRepository.save(user));
     }
 
-    /** Soft-delete: sets enabled=false instead of removing the record. */
-    public void disableUser(Long id) {
+    /**
+     * UC-17: Student deletion is a physical delete — permanently removes the student
+     * and all associated WARs and peer evaluations (cascade).
+     * UC-23: Instructor/Admin deactivation is a soft-delete (sets enabled=false).
+     */
+    public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
-        user.setEnabled(false);
-        userRepository.save(user);
+
+        if (user.getRole() == Role.STUDENT) {
+            // Physical delete: cascade WAR activities and peer evaluations first
+            activityRepository.deleteByStudentId(id);
+            peerEvaluationRepository.deleteByEvaluatorIdOrEvaluateeId(id, id);
+            // Team membership cascades automatically (FK ON DELETE CASCADE in DB)
+            userRepository.deleteById(id);
+        } else {
+            // Soft-deactivate instructors and admins (UC-23)
+            user.setEnabled(false);
+            userRepository.save(user);
+        }
     }
 }

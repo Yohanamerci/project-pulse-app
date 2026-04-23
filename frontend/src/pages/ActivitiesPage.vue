@@ -200,10 +200,11 @@ async function handleSubmit() {
 function openEditDialog(item: ActivityDto) {
   editingId.value = item.id
   editForm.value = {
-    activityName: item.activityName,
+    // Guard against legacy seed data that stored '' / 0.0 before V5 migration
+    activityName: item.activityName || item.description?.slice(0, 100) || '',
     category: item.category,
     description: item.description,
-    plannedHours: item.plannedHours,
+    plannedHours: (item.plannedHours ?? 0) >= 0.5 ? item.plannedHours : 1,
     actualHours: item.actualHours,
     status: item.status,
   }
@@ -574,6 +575,7 @@ onMounted(() => {
               v-model="form.status"
               :items="STATUSES"
               :item-title="(s) => statusLabels[s as ActivityStatus]"
+              :item-value="(s) => s"
               label="Status *"
               :rules="[(v) => !!v || 'Status is required']"
               variant="outlined"
@@ -662,6 +664,7 @@ onMounted(() => {
               v-model="editForm.status"
               :items="STATUSES"
               :item-title="(s) => statusLabels[s as ActivityStatus]"
+              :item-value="(s) => s"
               label="Status *"
               :rules="[(v) => !!v || 'Status is required']"
               variant="outlined"

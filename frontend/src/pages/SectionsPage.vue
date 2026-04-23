@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import {
   getSections,
   createSection,
   updateSection,
   deleteSection,
   getSectionActiveWeeks,
-  setActiveWeek,
+  saveWeek,
+  activateWeek,
   type SectionDto,
   type ActiveWeekDto,
 } from '@/apis/sections'
+
+const authStore = useAuthStore()
 
 const sections = ref<SectionDto[]>([])
 const loading = ref(false)
@@ -95,13 +99,15 @@ async function handleSaveSection() {
   }
 }
 
-// Set Active Week dialog
+// Manage Weeks dialog
 const weekDialog = ref(false)
 const weekDialogSection = ref<SectionDto | null>(null)
 const existingWeeks = ref<ActiveWeekDto[]>([])
 const loadingWeeks = ref(false)
 const weekFormRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
-const settingWeek = ref(false)
+const savingWeek = ref(false)
+const activatingWeekNumber = ref<number | null>(null)
+const weekDateError = ref<string | null>(null)
 const weekForm = ref({
   weekNumber: 1,
   startDate: '',
@@ -121,6 +127,7 @@ function weekMin(semester: string): number {
 async function openWeekDialog(section: SectionDto) {
   weekDialogSection.value = section
   weekForm.value = { weekNumber: weekMin(section.semester), startDate: '', endDate: '' }
+  weekDateError.value = null
   weekDialog.value = true
   loadingWeeks.value = true
   try {
@@ -132,27 +139,72 @@ async function openWeekDialog(section: SectionDto) {
   }
 }
 
-async function handleSetWeek() {
-  if (!weekFormRef.value || !weekDialogSection.value) return
-  const { valid } = await weekFormRef.value.validate()
-  if (!valid) return
+/** Click an existing week chip to pre-fill the form for editing */
+function selectWeekForEdit(week: ActiveWeekDto) {
+  weekForm.value = {
+    weekNumber: week.weekNumber,
+    startDate: String(week.startDate),
+    endDate: String(week.endDate),
+  }
+  weekDateError.value = null
+}
 
-  settingWeek.value = true
+async function handleSaveWeek() {
+  if (!weekDialogSection.value) return
+
+  // Manual date validation — bypasses Vuetify's unreliable type="date" rule system
+  weekDateError.value = null
+  if (!weekForm.value.startDate) {
+    weekDateError.value = 'Start date is required.'
+    return
+  }
+  if (!weekForm.value.endDate) {
+    weekDateError.value = 'End date is required.'
+    return
+  }
+  if (weekForm.value.endDate < weekForm.value.startDate) {
+    weekDateError.value = 'End date must be on or after the start date.'
+    return
+  }
+
+  // Validate week number field (still uses Vuetify rules for the number input)
+  if (weekFormRef.value) {
+    const { valid } = await weekFormRef.value.validate()
+    if (!valid) return
+  }
+
+  savingWeek.value = true
   try {
-    await setActiveWeek(weekDialogSection.value.id, {
+    await saveWeek(weekDialogSection.value.id, {
       weekNumber: Number(weekForm.value.weekNumber),
       startDate: weekForm.value.startDate,
       endDate: weekForm.value.endDate,
     })
-    snackbarMessage.value = `Week ${weekForm.value.weekNumber} set as active!`
+    snackbarMessage.value = `Week ${weekForm.value.weekNumber} saved.`
     snackbar.value = true
-    // Refresh weeks list in dialog
+    weekDateError.value = null
     existingWeeks.value = await getSectionActiveWeeks(weekDialogSection.value.id)
     await loadSections()
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to set active week.'
+    error.value = e instanceof Error ? e.message : 'Failed to save week.'
   } finally {
-    settingWeek.value = false
+    savingWeek.value = false
+  }
+}
+
+async function handleActivateWeek(weekNumber: number) {
+  if (!weekDialogSection.value) return
+  activatingWeekNumber.value = weekNumber
+  try {
+    await activateWeek(weekDialogSection.value.id, weekNumber)
+    snackbarMessage.value = `Week ${weekNumber} is now active!`
+    snackbar.value = true
+    existingWeeks.value = await getSectionActiveWeeks(weekDialogSection.value.id)
+    await loadSections()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to activate week.'
+  } finally {
+    activatingWeekNumber.value = null
   }
 }
 
@@ -192,7 +244,8 @@ onMounted(loadSections)
           <div>
             <h1 class="text-h5 font-weight-bold">Sections</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              Manage course sections and control the active submission week
+              <template v-if="authStore.isAdmin">Manage course sections and control the active submission week</template>
+              <template v-else>Create and edit sections, set active submission weeks</template>
             </p>
           </div>
         </div>
@@ -264,6 +317,7 @@ onMounted(loadSections)
             @click="openWeekDialog(item)"
           />
           <v-btn
+            v-if="authStore.isAdmin"
             icon="mdi-delete-outline"
             variant="text"
             size="small"
@@ -303,10 +357,12 @@ onMounted(loadSections)
             <v-text-field
               v-model="sectionForm.year"
               label="Year *"
-              type="number"
+              type="text"
+              inputmode="numeric"
               :rules="[
                 (v) => !!v || 'Year is required',
-                (v) => Number(v) >= 2000 || 'Enter a valid year',
+                (v) => /^\d{4}$/.test(String(v)) || 'Enter a 4-digit year (e.g. 2026)',
+                (v) => Number(v) >= 2000 || 'Year must be 2000 or later',
               ]"
               variant="outlined"
             />
@@ -330,12 +386,12 @@ onMounted(loadSections)
       </v-card>
     </v-dialog>
 
-    <!-- Set Active Week Dialog -->
-    <v-dialog v-model="weekDialog" max-width="560" persistent>
+    <!-- Manage Weeks Dialog -->
+    <v-dialog v-model="weekDialog" max-width="580" persistent>
       <v-card v-if="weekDialogSection" rounded="lg">
         <v-card-title class="pa-6 pb-4 d-flex align-center ga-2">
           <v-icon icon="mdi-calendar-edit" color="info" />
-          Set Active Week — {{ weekDialogSection.name }}
+          Manage Weeks — {{ weekDialogSection.name }}
         </v-card-title>
         <v-divider />
         <v-card-text class="pa-6">
@@ -345,76 +401,120 @@ onMounted(loadSections)
           </v-alert>
 
           <!-- Existing weeks -->
-          <p class="text-subtitle-2 font-weight-medium mb-2">Existing weeks:</p>
+          <p class="text-subtitle-2 font-weight-medium mb-1">
+            Saved weeks
+            <span class="text-caption text-medium-emphasis font-weight-regular ml-1">
+              (click to load into form · use
+              <v-icon size="12" icon="mdi-lightning-bolt" />
+              to activate)
+            </span>
+          </p>
           <div v-if="loadingWeeks" class="d-flex justify-center py-4">
             <v-progress-circular indeterminate size="24" color="info" />
           </div>
-          <div v-else class="d-flex flex-wrap ga-2 mb-6">
-            <v-chip
+          <div v-else class="d-flex flex-wrap ga-2 mb-5">
+            <div
               v-for="week in existingWeeks"
               :key="week.id"
-              :color="week.active ? 'success' : 'default'"
-              size="small"
-              :variant="week.active ? 'elevated' : 'tonal'"
+              class="d-flex align-center ga-1"
             >
-              Week {{ week.weekNumber }}
-              <template v-if="week.active"> (active)</template>
-            </v-chip>
+              <v-chip
+                :color="weekForm.weekNumber === week.weekNumber ? 'info' : week.active ? 'success' : 'default'"
+                size="small"
+                :variant="weekForm.weekNumber === week.weekNumber ? 'elevated' : week.active ? 'elevated' : 'tonal'"
+                class="cursor-pointer"
+                @click="selectWeekForEdit(week)"
+              >
+                Week {{ week.weekNumber }}
+                <template v-if="week.active"> · active</template>
+                <template v-else-if="week.startDate"> · {{ week.startDate }}</template>
+              </v-chip>
+              <!-- Activate button — only shown for inactive weeks -->
+              <v-btn
+                v-if="!week.active"
+                icon="mdi-lightning-bolt"
+                size="x-small"
+                variant="tonal"
+                color="warning"
+                :loading="activatingWeekNumber === week.weekNumber"
+                :disabled="activatingWeekNumber !== null"
+                @click.stop="handleActivateWeek(week.weekNumber)"
+              />
+            </div>
             <span
               v-if="!existingWeeks.length && !loadingWeeks"
               class="text-body-2 text-medium-emphasis"
             >
-              No weeks set yet
+              No weeks saved yet
             </span>
           </div>
 
+          <v-divider class="mb-4" />
+
           <!-- Week form -->
+          <p class="text-subtitle-2 font-weight-medium mb-3">
+            {{ existingWeeks.some(w => w.weekNumber === Number(weekForm.weekNumber)) ? 'Edit Week' : 'New Week' }}
+          </p>
+
           <v-form ref="weekFormRef">
             <v-text-field
               v-model="weekForm.weekNumber"
               label="Week Number *"
-              type="number"
+              type="text"
+              inputmode="numeric"
               :rules="[
                 (v) => !!v || 'Week number is required',
+                (v) => /^\d+$/.test(String(v)) || 'Must be a number',
                 (v) => Number(v) >= weekMin(weekDialogSection!.semester) || `Minimum week ${weekMin(weekDialogSection!.semester)} for ${weekDialogSection!.semester}`,
                 (v) => Number(v) <= 15 || 'Maximum week is 15',
               ]"
               variant="outlined"
-              :min="weekMin(weekDialogSection.semester)"
-              max="15"
               class="mb-4"
-            />
-            <v-text-field
-              v-model="weekForm.startDate"
-              label="Start Date *"
-              type="date"
-              :rules="[(v) => !!v || 'Start date is required']"
-              variant="outlined"
-              class="mb-4"
-            />
-            <v-text-field
-              v-model="weekForm.endDate"
-              label="End Date *"
-              type="date"
-              :rules="[
-                (v) => !!v || 'End date is required',
-                (v) => !weekForm.startDate || v >= weekForm.startDate || 'End date must be after start date',
-              ]"
-              variant="outlined"
             />
           </v-form>
+
+          <!-- Plain date inputs — Vuetify's rules on type=date are unreliable;
+               we validate manually in handleSaveWeek() instead -->
+          <div class="mb-4">
+            <label class="text-body-2 font-weight-medium d-block mb-1">Start Date *</label>
+            <input
+              v-model="weekForm.startDate"
+              type="date"
+              class="pp-date-input"
+            />
+          </div>
+          <div class="mb-2">
+            <label class="text-body-2 font-weight-medium d-block mb-1">End Date *</label>
+            <input
+              v-model="weekForm.endDate"
+              type="date"
+              :min="weekForm.startDate || undefined"
+              class="pp-date-input"
+            />
+          </div>
+
+          <!-- Manual date validation error -->
+          <v-alert
+            v-if="weekDateError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+          >
+            {{ weekDateError }}
+          </v-alert>
         </v-card-text>
         <v-divider />
         <v-card-actions class="pa-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="settingWeek" @click="weekDialog = false">Cancel</v-btn>
+          <v-btn variant="text" :disabled="savingWeek" @click="weekDialog = false">Close</v-btn>
           <v-btn
             color="info"
             variant="elevated"
-            :loading="settingWeek"
-            @click="handleSetWeek"
+            :loading="savingWeek"
+            @click="handleSaveWeek"
           >
-            Set Active Week
+            Save Week
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -429,3 +529,31 @@ onMounted(loadSections)
     </v-snackbar>
   </v-container>
 </template>
+
+<style scoped>
+.pp-date-input {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  background-color: transparent;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.38);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  color-scheme: light dark;
+}
+
+.pp-date-input:hover {
+  border-color: rgba(var(--v-theme-on-surface), 0.87);
+}
+
+.pp-date-input:focus {
+  border-color: rgb(var(--v-theme-info));
+  border-width: 2px;
+  padding: 13px 15px;
+}
+</style>

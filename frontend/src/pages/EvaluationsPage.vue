@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   submitEvaluation,
+  resubmitEvaluation,
   getMyEvaluations,
   getMyScores,
   getTeamWeekEvaluations,
@@ -52,12 +53,21 @@ const criterionScores = ref<Record<number, number>>({})
 const criterionPublicComments = ref<Record<number, string>>({})
 const criterionPrivateComments = ref<Record<number, string>>({})
 const submittingEval = ref(false)
+const editingEvaluationId = ref<number | null>(null)
 
-function openEvalDialog(teammate: TeamMemberDto) {
+function getExistingEvaluation(teammateId: number): EvaluationDto | undefined {
+  return myEvaluations.value.find(
+    (e) => e.evaluateeId === teammateId && e.weekId === activeWeek.value?.id
+  )
+}
+
+function openEvalDialog(teammate: TeamMemberDto, editMode = false) {
   evalTarget.value = teammate
+  editingEvaluationId.value = null
   criterionScores.value = {}
   criterionPublicComments.value = {}
   criterionPrivateComments.value = {}
+
   if (rubric.value) {
     rubric.value.criteria.forEach((c) => {
       criterionScores.value[c.id] = 0
@@ -65,6 +75,19 @@ function openEvalDialog(teammate: TeamMemberDto) {
       criterionPrivateComments.value[c.id] = ''
     })
   }
+
+  if (editMode) {
+    const existing = getExistingEvaluation(teammate.id)
+    if (existing) {
+      editingEvaluationId.value = existing.id
+      existing.scores.forEach((s) => {
+        criterionScores.value[s.criterionId] = s.score
+        criterionPublicComments.value[s.criterionId] = s.publicComment ?? ''
+        criterionPrivateComments.value[s.criterionId] = s.privateComment ?? ''
+      })
+    }
+  }
+
   evalDialog.value = true
 }
 
@@ -78,18 +101,24 @@ async function handleSubmitEval() {
     privateComment: criterionPrivateComments.value[c.id] || undefined,
   }))
 
+  const payload = {
+    evaluateeId: evalTarget.value.id,
+    teamId: myTeam.value.id,
+    weekId: activeWeek.value.id,
+    scores,
+  }
+
   submittingEval.value = true
   try {
-    await submitEvaluation({
-      evaluateeId: evalTarget.value.id,
-      teamId: myTeam.value.id,
-      weekId: activeWeek.value.id,
-      scores,
-    })
+    if (editingEvaluationId.value !== null) {
+      await resubmitEvaluation(editingEvaluationId.value, payload)
+      snackbarMessage.value = `Evaluation for ${evalTarget.value.firstName} updated!`
+    } else {
+      await submitEvaluation(payload)
+      snackbarMessage.value = `Evaluation for ${evalTarget.value.firstName} submitted!`
+    }
     evalDialog.value = false
-    snackbarMessage.value = `Evaluation for ${evalTarget.value.firstName} submitted!`
     snackbar.value = true
-    // Refresh myEvaluations so the chip updates
     myEvaluations.value = await getMyEvaluations()
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to submit evaluation.'
@@ -430,10 +459,21 @@ watch(selectedWeekId, () => {
                 <v-card-actions class="pt-0">
                   <v-spacer />
                   <v-btn
+                    v-if="hasEvaluated(teammate.id) && activeWeek"
+                    color="warning"
+                    variant="tonal"
+                    size="small"
+                    prepend-icon="mdi-pencil"
+                    @click="openEvalDialog(teammate, true)"
+                  >
+                    Edit
+                  </v-btn>
+                  <v-btn
+                    v-else
                     color="success"
                     variant="tonal"
                     size="small"
-                    :disabled="hasEvaluated(teammate.id) || !activeWeek || !rubric"
+                    :disabled="!activeWeek || !rubric"
                     @click="openEvalDialog(teammate)"
                   >
                     Evaluate
@@ -658,6 +698,51 @@ watch(selectedWeekId, () => {
                   · {{ gradePercent(grade) }}%
                 </div>
               </v-card-text>
+              <v-divider />
+              <!-- Expandable individual evaluations with comments -->
+              <v-expansion-panels variant="accordion" flat>
+                <v-expansion-panel>
+                  <v-expansion-panel-title class="text-caption font-weight-medium px-4 py-2">
+                    View Individual Evaluations
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text class="pa-0">
+                    <div
+                      v-for="(ev, idx) in grade.evaluationsReceived"
+                      :key="ev.id"
+                      class="px-4 py-3"
+                      :class="{ 'border-t-thin': idx > 0 }"
+                    >
+                      <div class="d-flex justify-space-between mb-1">
+                        <span class="text-caption font-weight-bold">Peer {{ idx + 1 }}</span>
+                        <v-chip size="x-small" variant="tonal" color="success">
+                          {{ ev.totalScore }} pts
+                        </v-chip>
+                      </div>
+                      <div
+                        v-for="score in ev.scores"
+                        :key="score.criterionId"
+                        class="mb-2"
+                      >
+                        <div class="d-flex justify-space-between text-caption">
+                          <span>{{ score.criterionName }}</span>
+                          <span>{{ score.score }}/{{ score.maxScore }}</span>
+                        </div>
+                        <div v-if="score.publicComment" class="text-caption text-medium-emphasis mt-1">
+                          <v-icon icon="mdi-comment-outline" size="10" class="mr-1" />
+                          Public: {{ score.publicComment }}
+                        </div>
+                        <div v-if="score.privateComment" class="text-caption text-warning mt-1">
+                          <v-icon icon="mdi-eye-off-outline" size="10" class="mr-1" />
+                          Private: {{ score.privateComment }}
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="grade.evaluationsReceived.length === 0" class="px-4 py-3 text-caption text-medium-emphasis">
+                      No evaluations yet.
+                    </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
             </v-card>
           </v-col>
         </v-row>
@@ -668,7 +753,8 @@ watch(selectedWeekId, () => {
     <v-dialog v-model="evalDialog" max-width="600" persistent>
       <v-card v-if="evalTarget" rounded="lg">
         <v-card-title class="pa-6 pb-4">
-          Evaluate {{ evalTarget.firstName }} {{ evalTarget.lastName }}
+          {{ editingEvaluationId !== null ? 'Edit Evaluation —' : 'Evaluate' }}
+          {{ evalTarget.firstName }} {{ evalTarget.lastName }}
         </v-card-title>
         <v-divider />
         <v-card-text class="pa-6">
@@ -734,7 +820,7 @@ watch(selectedWeekId, () => {
             :loading="submittingEval"
             @click="handleSubmitEval"
           >
-            Submit Evaluation
+            {{ editingEvaluationId !== null ? 'Save Changes' : 'Submit Evaluation' }}
           </v-btn>
         </v-card-actions>
       </v-card>

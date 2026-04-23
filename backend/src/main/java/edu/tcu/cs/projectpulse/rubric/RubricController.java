@@ -44,21 +44,21 @@ public class RubricController {
     }
 
     @PostMapping("/{id}/criteria")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<CriterionDto> addCriterion(@PathVariable Long id,
                                              @Valid @RequestBody CriterionRequest req) {
         return Result.success("Criterion added", rubricService.addCriterion(id, req));
     }
 
     @PutMapping("/criteria/{criterionId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<CriterionDto> updateCriterion(@PathVariable Long criterionId,
                                                 @Valid @RequestBody CriterionRequest req) {
         return Result.success("Criterion updated", rubricService.updateCriterion(criterionId, req));
     }
 
     @DeleteMapping("/criteria/{criterionId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     public Result<Void> deleteCriterion(@PathVariable Long criterionId) {
         rubricService.deleteCriterion(criterionId);
         return Result.success("Criterion deleted", null);

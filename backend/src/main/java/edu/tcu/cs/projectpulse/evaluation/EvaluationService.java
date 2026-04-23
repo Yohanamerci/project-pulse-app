@@ -23,17 +23,20 @@ import java.util.stream.Collectors;
 public class EvaluationService {
 
     private final PeerEvaluationRepository peerEvaluationRepository;
+    private final EvaluationScoreRepository evaluationScoreRepository;
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final ActiveWeekRepository activeWeekRepository;
     private final CriterionRepository criterionRepository;
 
     public EvaluationService(PeerEvaluationRepository peerEvaluationRepository,
+                              EvaluationScoreRepository evaluationScoreRepository,
                               UserRepository userRepository,
                               TeamRepository teamRepository,
                               ActiveWeekRepository activeWeekRepository,
                               CriterionRepository criterionRepository) {
         this.peerEvaluationRepository = peerEvaluationRepository;
+        this.evaluationScoreRepository = evaluationScoreRepository;
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.activeWeekRepository = activeWeekRepository;
@@ -55,9 +58,11 @@ public class EvaluationService {
             throw new IllegalArgumentException("Cannot evaluate yourself");
         }
 
-        if (peerEvaluationRepository.existsByEvaluatorIdAndEvaluateeIdAndWeekId(
-                evaluator.getId(), req.evaluateeId(), req.weekId())) {
-            throw new IllegalStateException("Evaluation already submitted and cannot be edited.");
+        // If an evaluation already exists for this evaluator/evaluatee/week, update it (UC-28)
+        java.util.Optional<PeerEvaluation> existing = peerEvaluationRepository
+                .findByEvaluatorIdAndEvaluateeIdAndWeekId(evaluator.getId(), req.evaluateeId(), req.weekId());
+        if (existing.isPresent()) {
+            return updateScores(existing.get(), req.scores());
         }
 
         User evaluatee = userRepository.findById(req.evaluateeId())
@@ -87,6 +92,46 @@ public class EvaluationService {
             evaluation.getScores().add(es);
         }
 
+        return EvaluationDto.from(peerEvaluationRepository.save(evaluation));
+    }
+
+    /** Explicit resubmit endpoint — validates ownership + active week, then updates scores. */
+    public EvaluationDto resubmit(Long evaluationId, String username, EvaluationRequest req) {
+        User evaluator = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + username));
+
+        PeerEvaluation evaluation = peerEvaluationRepository.findById(evaluationId)
+                .orElseThrow(() -> new EntityNotFoundException("Evaluation not found with id: " + evaluationId));
+
+        if (!evaluation.getEvaluator().getId().equals(evaluator.getId())) {
+            throw new IllegalStateException("You can only edit your own evaluations.");
+        }
+
+        if (!evaluation.getWeek().isActive()) {
+            throw new IllegalStateException("The active week has closed. Evaluations can no longer be edited.");
+        }
+
+        return updateScores(evaluation, req.scores());
+    }
+
+    /** Update scores on an existing evaluation (called when re-submitting during active week). */
+    private EvaluationDto updateScores(PeerEvaluation evaluation, List<ScoreRequest> scoreRequests) {
+        // Explicit delete + flush avoids Hibernate PersistentBag ordering issues with orphanRemoval
+        evaluationScoreRepository.deleteByEvaluationId(evaluation.getId());
+        evaluationScoreRepository.flush();
+        evaluation.getScores().clear();
+        for (ScoreRequest sr : scoreRequests) {
+            Criterion criterion = criterionRepository.findById(sr.criterionId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Criterion not found with id: " + sr.criterionId()));
+            EvaluationScore es = new EvaluationScore();
+            es.setCriterion(criterion);
+            es.setScore(sr.score());
+            es.setPublicComment(sr.publicComment());
+            es.setPrivateComment(sr.privateComment());
+            es.setEvaluation(evaluation);
+            evaluation.getScores().add(es);
+        }
         return EvaluationDto.from(peerEvaluationRepository.save(evaluation));
     }
 

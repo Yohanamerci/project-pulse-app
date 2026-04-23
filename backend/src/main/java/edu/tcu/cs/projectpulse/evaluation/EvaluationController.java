@@ -28,6 +28,16 @@ public class EvaluationController {
                 evaluationService.submit(jwt.getSubject(), req));
     }
 
+    /** Re-submit / update an existing evaluation while the active week is still open (UC-28). */
+    @PostMapping("/{id}/resubmit")
+    @PreAuthorize("hasRole('STUDENT')")
+    public Result<EvaluationDto> resubmitEvaluation(@PathVariable Long id,
+                                                    @AuthenticationPrincipal Jwt jwt,
+                                                    @Valid @RequestBody EvaluationRequest req) {
+        return Result.success("Evaluation updated",
+                evaluationService.resubmit(id, jwt.getSubject(), req));
+    }
+
     @GetMapping("/my")
     @PreAuthorize("hasRole('STUDENT')")
     public Result<List<EvaluationDto>> getMyEvaluations(@AuthenticationPrincipal Jwt jwt) {

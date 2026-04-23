@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   getTeams,
   getMyTeam,
   createTeam,
+  updateTeam,
   addStudent,
   removeStudent,
   assignInstructor,
@@ -18,6 +20,7 @@ import { getRubrics, type RubricDto } from '@/apis/rubrics'
 import { getUsers, type UserDto } from '@/apis/users'
 
 const authStore = useAuthStore()
+const router = useRouter()
 
 const teams = ref<TeamDto[]>([])
 const myTeam = ref<TeamDto | null>(null)
@@ -219,6 +222,34 @@ async function handleRemoveStudent(studentId: number) {
   }
 }
 
+// Rename Team dialog
+const renameDialog = ref(false)
+const renamingTeam = ref<TeamDto | null>(null)
+const renameValue = ref('')
+const renaming = ref(false)
+
+function openRenameDialog(team: TeamDto) {
+  renamingTeam.value = team
+  renameValue.value = team.name
+  renameDialog.value = true
+}
+
+async function handleRenameTeam() {
+  if (!renamingTeam.value || !renameValue.value.trim()) return
+  renaming.value = true
+  try {
+    await updateTeam(renamingTeam.value.id, renameValue.value.trim())
+    renameDialog.value = false
+    snackbarMessage.value = 'Team renamed.'
+    snackbar.value = true
+    await loadTeams()
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to rename team.'
+  } finally {
+    renaming.value = false
+  }
+}
+
 const deletingTeamId = ref<number | null>(null)
 
 async function handleDeleteTeam(team: TeamDto) {
@@ -286,7 +317,7 @@ onMounted(async () => {
     await loadMyTeam()
   } else {
     await loadTeams()
-    if (authStore.isAdmin) {
+    if (authStore.isAdmin || authStore.isInstructor) {
       await loadSupportData()
     }
   }
@@ -306,13 +337,13 @@ onMounted(async () => {
             <h1 class="text-h5 font-weight-bold">Teams</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
               <span v-if="authStore.isAdmin">Create teams, assign instructors and students</span>
-              <span v-else-if="authStore.isInstructor">View all teams</span>
+              <span v-else-if="authStore.isInstructor">Create and manage teams, add or move students</span>
               <span v-else>View your team and teammates</span>
             </p>
           </div>
         </div>
       </v-col>
-      <v-col v-if="authStore.isAdmin" cols="auto">
+      <v-col v-if="authStore.isAdmin || authStore.isInstructor" cols="auto">
         <v-btn color="info" prepend-icon="mdi-plus" @click="openCreateDialog">
           Create Team
         </v-btn>
@@ -432,14 +463,13 @@ onMounted(async () => {
           <v-card rounded="lg" elevation="2" height="100%">
             <v-card-title class="pa-4 pb-2 d-flex align-center justify-space-between">
               <span class="text-body-1 font-weight-bold">{{ team.name }}</span>
-              <v-chip
-                v-if="team.sectionName"
-                color="info"
-                size="x-small"
-                variant="tonal"
-              >
-                {{ team.sectionName }}
-              </v-chip>
+              <div class="d-flex align-center ga-1">
+                <v-chip v-if="team.sectionName" color="info" size="x-small" variant="tonal">
+                  {{ team.sectionName }}
+                </v-chip>
+                <v-btn icon="mdi-pencil-outline" variant="text" size="x-small" color="info"
+                  @click="openRenameDialog(team)" />
+              </div>
             </v-card-title>
             <v-card-text class="pt-2">
               <div class="d-flex align-center ga-1 mb-1">
@@ -488,31 +518,41 @@ onMounted(async () => {
       </v-row>
     </template>
 
-    <!-- INSTRUCTOR: Read-only grid -->
+    <!-- INSTRUCTOR: Manageable grid (no delete) -->
     <template v-else-if="authStore.isInstructor">
+      <v-text-field
+        v-model="search"
+        label="Search teams..."
+        prepend-inner-icon="mdi-magnify"
+        variant="outlined"
+        density="compact"
+        clearable
+        class="mb-4"
+        style="max-width: 400px"
+      />
+
       <div v-if="loading" class="d-flex justify-center py-12">
         <v-progress-circular indeterminate color="info" />
       </div>
 
       <v-row v-else>
         <v-col
-          v-for="team in teams"
+          v-for="team in filteredTeams"
           :key="team.id"
           cols="12"
           sm="6"
           md="4"
         >
-          <v-card rounded="lg" elevation="2">
+          <v-card rounded="lg" elevation="2" height="100%">
             <v-card-title class="pa-4 pb-2 d-flex align-center justify-space-between">
               <span class="text-body-1 font-weight-bold">{{ team.name }}</span>
-              <v-chip
-                v-if="team.sectionName"
-                color="info"
-                size="x-small"
-                variant="tonal"
-              >
-                {{ team.sectionName }}
-              </v-chip>
+              <div class="d-flex align-center ga-1">
+                <v-chip v-if="team.sectionName" color="info" size="x-small" variant="tonal">
+                  {{ team.sectionName }}
+                </v-chip>
+                <v-btn icon="mdi-pencil-outline" variant="text" size="x-small" color="info"
+                  @click="openRenameDialog(team)" />
+              </div>
             </v-card-title>
             <v-card-text class="pt-2">
               <div class="d-flex align-center ga-1 mb-1">
@@ -531,13 +571,17 @@ onMounted(async () => {
                 </span>
               </div>
             </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn color="info" variant="tonal" size="small" @click="openManageDialog(team)">
+                Manage
+              </v-btn>
+            </v-card-actions>
           </v-card>
         </v-col>
 
-        <v-col v-if="teams.length === 0" cols="12">
-          <v-alert type="info" variant="tonal" density="compact">
-            No teams found.
-          </v-alert>
+        <v-col v-if="filteredTeams.length === 0" cols="12">
+          <v-alert type="info" variant="tonal" density="compact">No teams found.</v-alert>
         </v-col>
       </v-row>
     </template>
@@ -735,6 +779,7 @@ onMounted(async () => {
               size="small"
               closable
               :disabled="removingStudentId === student.id"
+              @click="router.push(`/students/${student.id}`)"
               @click:close="handleRemoveStudent(student.id)"
             >
               {{ student.firstName }} {{ student.lastName }}
@@ -751,6 +796,34 @@ onMounted(async () => {
         <v-card-actions class="pa-4">
           <v-spacer />
           <v-btn variant="elevated" color="info" @click="manageDialog = false">Done</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Rename Team Dialog -->
+    <v-dialog v-model="renameDialog" max-width="420" persistent>
+      <v-card v-if="renamingTeam" rounded="lg">
+        <v-card-title class="pa-6 pb-4 d-flex align-center ga-2">
+          <v-icon icon="mdi-pencil" color="info" />
+          Rename Team
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pa-6">
+          <v-text-field
+            v-model="renameValue"
+            label="Team Name *"
+            variant="outlined"
+            autofocus
+            :rules="[(v) => !!v || 'Name is required']"
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="text" :disabled="renaming" @click="renameDialog = false">Cancel</v-btn>
+          <v-btn color="info" variant="elevated" :loading="renaming" @click="handleRenameTeam">
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

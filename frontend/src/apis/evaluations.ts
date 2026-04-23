@@ -86,3 +86,16 @@ export async function getStudentGrades(studentId: number): Promise<GradeDto[]> {
   const response = await request.get<ApiResponse<GradeDto[]>>(`/evaluations/grade/student/${studentId}`)
   return response.data.data
 }
+
+export async function resubmitEvaluation(
+  evaluationId: number,
+  data: {
+    evaluateeId: number
+    teamId: number
+    weekId: number
+    scores: { criterionId: number; score: number; publicComment?: string; privateComment?: string }[]
+  }
+): Promise<EvaluationDto> {
+  const response = await request.post<ApiResponse<EvaluationDto>>(`/evaluations/${evaluationId}/resubmit`, data)
+  return response.data.data
+}

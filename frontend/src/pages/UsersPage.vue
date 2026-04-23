@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { getUsers, createUser, updateUser, deleteUser, type UserDto } from '@/apis/users'
 import { getTeams, type TeamDto } from '@/apis/teams'
 import { getStudentActivities, type ActivityDto } from '@/apis/activities'
 import { getStudentGrades, type GradeDto } from '@/apis/evaluations'
+
+const authStore = useAuthStore()
 
 const users = ref<UserDto[]>([])
 const loading = ref(false)
@@ -12,7 +15,8 @@ const snackbar = ref(false)
 const snackbarMessage = ref('')
 
 const search = ref('')
-const tab = ref('ALL')
+// Instructors default to the Students tab (UC-15: find students)
+const tab = ref(authStore.isInstructor ? 'STUDENT' : 'ALL')
 
 const ROLES: Array<'ADMIN' | 'INSTRUCTOR' | 'STUDENT'> = ['ADMIN', 'INSTRUCTOR', 'STUDENT']
 
@@ -170,11 +174,16 @@ async function openViewDialog(user: UserDto) {
 const deletingUserId = ref<number | null>(null)
 
 async function handleDeleteUser(user: UserDto) {
-  if (!confirm(`Delete user "@${user.username}"? This cannot be undone.`)) return
+  const confirmMessage = user.role === 'STUDENT'
+    ? `Permanently delete student "@${user.username}"?\n\nThis will also permanently delete ALL their WAR activities and peer evaluations. This cannot be undone (UC-17).`
+    : `Deactivate instructor "@${user.username}"?\n\nTheir account will be disabled but not removed. You can reactivate it later (UC-23).`
+  if (!confirm(confirmMessage)) return
   deletingUserId.value = user.id
   try {
     await deleteUser(user.id)
-    snackbarMessage.value = `User "@${user.username}" deleted.`
+    snackbarMessage.value = user.role === 'STUDENT'
+      ? `Student "@${user.username}" permanently deleted.`
+      : `Instructor "@${user.username}" deactivated.`
     snackbar.value = true
     await loadUsers()
   } catch (e: unknown) {
@@ -211,12 +220,13 @@ onMounted(loadUsers)
           <div>
             <h1 class="text-h5 font-weight-bold">Users</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              Create and manage instructor and student accounts
+              <template v-if="authStore.isAdmin">Create and manage instructor and student accounts</template>
+              <template v-else>Find and view students and instructors (UC-15, UC-16)</template>
             </p>
           </div>
         </div>
       </v-col>
-      <v-col cols="auto">
+      <v-col v-if="authStore.isAdmin" cols="auto">
         <v-btn color="error" prepend-icon="mdi-account-plus" @click="openAddDialog">
           Add User
         </v-btn>
@@ -293,22 +303,33 @@ onMounted(loadUsers)
             color="secondary"
             @click="openViewDialog(item)"
           />
+          <!-- Instructor: edit students only -->
           <v-btn
+            v-if="authStore.isInstructor && item.role === 'STUDENT'"
             icon="mdi-pencil"
             variant="text"
             size="small"
             color="primary"
             @click="openEditDialog(item)"
           />
-          <v-btn
-            v-if="item.role !== 'ADMIN'"
-            icon="mdi-delete-outline"
-            variant="text"
-            size="small"
-            color="error"
-            :loading="deletingUserId === item.id"
-            @click="handleDeleteUser(item)"
-          />
+          <template v-if="authStore.isAdmin">
+            <v-btn
+              icon="mdi-pencil"
+              variant="text"
+              size="small"
+              color="primary"
+              @click="openEditDialog(item)"
+            />
+            <v-btn
+              v-if="item.role !== 'ADMIN'"
+              icon="mdi-delete-outline"
+              variant="text"
+              size="small"
+              :color="item.role === 'STUDENT' ? 'error' : 'warning'"
+              :loading="deletingUserId === item.id"
+              @click="handleDeleteUser(item)"
+            />
+          </template>
         </template>
       </v-data-table>
     </v-card>
@@ -436,6 +457,7 @@ onMounted(loadUsers)
               class="mt-2"
             />
             <v-switch
+              v-if="authStore.isAdmin"
               v-model="editForm.enabled"
               label="Account Active"
               color="success"
@@ -569,6 +591,15 @@ onMounted(loadUsers)
 
         <v-divider />
         <v-card-actions class="pa-4">
+          <v-btn
+            v-if="viewingUser.role === 'STUDENT'"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-chart-line"
+            :to="`/students/${viewingUser.id}`"
+          >
+            Performance Dashboard
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="viewDialog = false">Close</v-btn>
         </v-card-actions>

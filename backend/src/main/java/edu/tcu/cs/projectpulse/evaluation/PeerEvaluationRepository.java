@@ -15,4 +15,9 @@ public interface PeerEvaluationRepository extends JpaRepository<PeerEvaluation, 
     boolean existsByEvaluatorIdAndEvaluateeIdAndWeekId(Long evaluatorId, Long evaluateeId, Long weekId);
 
     List<PeerEvaluation> findByEvaluateeIdAndWeekId(Long evaluateeId, Long weekId);
+
+    java.util.Optional<PeerEvaluation> findByEvaluatorIdAndEvaluateeIdAndWeekId(
+            Long evaluatorId, Long evaluateeId, Long weekId);
+
+    void deleteByEvaluatorIdOrEvaluateeId(Long evaluatorId, Long evaluateeId);
 }

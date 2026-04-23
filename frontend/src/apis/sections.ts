@@ -50,11 +50,21 @@ export async function getSectionActiveWeeks(id: number): Promise<ActiveWeekDto[]
   return response.data.data
 }
 
-export async function setActiveWeek(
+/** Save (create or update) a week's dates without activating it. */
+export async function saveWeek(
   id: number,
   data: { weekNumber: number; startDate: string; endDate: string }
 ): Promise<ActiveWeekDto> {
-  const response = await request.post<{ flag: boolean; code: number; message: string; data: ActiveWeekDto }>(`/sections/${id}/active-week`, data)
+  const response = await request.put<{ flag: boolean; code: number; message: string; data: ActiveWeekDto }>(`/sections/${id}/weeks`, data)
+  return response.data.data
+}
+
+/** Activate a previously saved week (deactivates all others, notifies students). */
+export async function activateWeek(
+  id: number,
+  weekNumber: number
+): Promise<ActiveWeekDto> {
+  const response = await request.post<{ flag: boolean; code: number; message: string; data: ActiveWeekDto }>(`/sections/${id}/weeks/${weekNumber}/activate`)
   return response.data.data
 }
 

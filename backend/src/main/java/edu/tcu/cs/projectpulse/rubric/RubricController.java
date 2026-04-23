@@ -25,7 +25,7 @@ public class RubricController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("isAuthenticated()")
     public Result<RubricDto> getRubricById(@PathVariable Long id) {
         return Result.success(rubricService.findById(id));
     }

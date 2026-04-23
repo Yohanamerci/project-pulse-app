@@ -344,6 +344,15 @@ main
 | 1 | ~~Medium~~ | ~~`AuthControllerTest.java` fails to compile~~ | ✅ Fixed — rewritten with `@WebMvcTest(AuthController.class)` + `@MockBean AuthService` |
 | 2 | ~~Low~~ | ~~Flyway not auto-configured in Spring Boot 4~~ | ✅ Fixed — manual `FlywayConfig.java` in `system/` handles migration |
 | 3 | Low | Section list shows duplicates if V2 is applied twice | Fixed — `INSERT IGNORE` in V2. Drop/recreate DB if duplicates appear in dev. |
+| 4 | ~~High~~ | ~~Student gets 403 when loading rubric on Evaluations page~~ | ✅ Fixed — `GET /rubrics/{id}` now allows any authenticated user (`isAuthenticated()`) |
+| 5 | ~~Medium~~ | ~~Admin can add a student to multiple teams~~ | ✅ Fixed — `TeamService.addStudent()` checks `findByStudentsId()` and throws `IllegalStateException` if already assigned |
+| 6 | ~~Medium~~ | ~~BR-1 violated: last instructor removable from team~~ | ✅ Fixed — `TeamService.removeInstructor()` throws if `instructors.size() <= 1` |
+| 7 | ~~Low~~ | ~~Rubric criterion form flashes "Name is required" immediately after save~~ | ✅ Fixed — `criterionFormRef.value?.reset()` called after `resetCriterionForm()` in `handleSaveCriterion()` |
+| 8 | ~~Low~~ | ~~"Not on team" shows as red error instead of warning on Evaluations page~~ | ✅ Fixed — uses `notOnTeam` ref to show `type="warning"` alert; 404 from `getMyTeam()` no longer sets global error |
+| 9 | ~~Low~~ | ~~Add Student dropdown shows already-assigned students~~ | ✅ Fixed — `availableStudentItems` computed filters out any student already on any team |
+| 10 | ~~Low~~ | ~~Evaluations overview shows "Select a team and week" even when team+week are selected but no data exists~~ | ✅ Fixed — `no-data-text` is dynamic: context-aware message when filters applied |
+| 11 | ~~Low~~ | ~~Activity update with invalid enum value returns unhandled 500~~ | ✅ Fixed — `GlobalExceptionHandler` now handles `HttpMessageConversionException` → 400 |
+| 12 | ~~Low~~ | ~~Evaluations page subtitle says "Submit peer evaluations" for instructors~~ | ✅ Fixed — subtitle is role-aware: different text for students vs instructor/admin |
 
 ---
 

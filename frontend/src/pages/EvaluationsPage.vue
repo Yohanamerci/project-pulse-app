@@ -30,6 +30,7 @@ const activeWeek = ref<ActiveWeekDto | null>(null)
 const rubric = ref<RubricDto | null>(null)
 const myEvaluations = ref<EvaluationDto[]>([])
 const loadingTeam = ref(false)
+const notOnTeam = ref(false)
 
 const teammates = computed<TeamMemberDto[]>(() => {
   if (!myTeam.value) return []
@@ -100,6 +101,7 @@ async function handleSubmitEval() {
 async function loadStudentData() {
   loadingTeam.value = true
   error.value = null
+  notOnTeam.value = false
   try {
     myTeam.value = await getMyTeam()
     if (myTeam.value.sectionId) {
@@ -110,7 +112,12 @@ async function loadStudentData() {
     }
     myEvaluations.value = await getMyEvaluations()
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Could not load team data.'
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('404') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not assigned')) {
+      notOnTeam.value = true
+    } else {
+      error.value = msg || 'Could not load team data.'
+    }
   } finally {
     loadingTeam.value = false
   }
@@ -307,7 +314,8 @@ watch(selectedWeekId, () => {
           <div>
             <h1 class="text-h5 font-weight-bold">Peer Evaluations</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              Submit weekly peer evaluations and view your received scores
+              <template v-if="authStore.isStudent">Submit weekly peer evaluations and view your received scores</template>
+              <template v-else>View peer evaluation submissions and grade reports for your teams</template>
             </p>
           </div>
         </div>
@@ -446,8 +454,8 @@ watch(selectedWeekId, () => {
         </template>
 
         <v-alert
-          v-else-if="!loadingTeam"
-          type="error"
+          v-else-if="notOnTeam"
+          type="warning"
           variant="tonal"
           density="compact"
         >
@@ -540,7 +548,7 @@ watch(selectedWeekId, () => {
             :items="overviewEvaluations"
             :loading="loadingOverview"
             loading-text="Loading evaluations..."
-            no-data-text="Select a team and week to view evaluations."
+            :no-data-text="!selectedTeamId || !selectedWeekId ? 'Select a team and week to view evaluations.' : 'No evaluations submitted for this week yet.'"
             item-value="id"
             :items-per-page="10"
             :items-per-page-options="[10, 25, 50, { value: -1, title: 'All' }]"

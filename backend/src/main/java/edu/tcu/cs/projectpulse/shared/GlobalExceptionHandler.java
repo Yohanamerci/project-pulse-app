@@ -2,6 +2,7 @@ package edu.tcu.cs.projectpulse.shared;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -54,6 +55,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleIllegalArgument(IllegalArgumentException ex) {
         return Result.error(StatusCode.INVALID_ARGUMENT, ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageConversionException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMessageConversion(HttpMessageConversionException ex) {
+        return Result.error(StatusCode.INVALID_ARGUMENT,
+                "Invalid request data: " + ex.getMostSpecificCause().getMessage());
     }
 
     @ExceptionHandler(Exception.class)

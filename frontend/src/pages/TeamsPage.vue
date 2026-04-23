@@ -65,11 +65,19 @@ const instructorItems = computed(() =>
     value: u.id,
   }))
 )
-const studentItems = computed(() =>
-  students.value.map((u) => ({
-    title: `${u.firstName} ${u.lastName} (@${u.username})`,
-    value: u.id,
-  }))
+const assignedStudentIds = computed(() => {
+  const ids = new Set<number>()
+  teams.value.forEach((t) => t.students.forEach((s) => ids.add(s.id)))
+  return ids
+})
+
+const availableStudentItems = computed(() =>
+  students.value
+    .filter((u) => !assignedStudentIds.value.has(u.id))
+    .map((u) => ({
+      title: `${u.firstName} ${u.lastName} (@${u.username})`,
+      value: u.id,
+    }))
 )
 
 // Create Team dialog
@@ -695,12 +703,13 @@ onMounted(async () => {
             <v-col>
               <v-select
                 v-model="selectedStudentId"
-                :items="studentItems"
+                :items="availableStudentItems"
                 label="Select Student"
                 variant="outlined"
                 density="compact"
                 clearable
                 hide-details
+                :no-data-text="students.length === 0 ? 'No students found' : 'All students are already assigned to teams'"
               />
             </v-col>
             <v-col cols="auto">

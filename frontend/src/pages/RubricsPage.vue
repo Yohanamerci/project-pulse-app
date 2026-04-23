@@ -134,6 +134,7 @@ async function handleSaveCriterion() {
     }
     snackbar.value = true
     resetCriterionForm()
+    criterionFormRef.value?.reset()
     await loadAll()
     // Refresh the active rubric in the dialog
     const fresh = rubrics.value.find((r) => r.id === activeCriteriaRubric.value!.id)

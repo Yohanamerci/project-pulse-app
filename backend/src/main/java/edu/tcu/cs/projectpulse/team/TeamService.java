@@ -87,6 +87,12 @@ public class TeamService {
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + studentId));
+        List<Team> existingTeams = teamRepository.findByStudentsId(studentId);
+        if (!existingTeams.isEmpty()) {
+            throw new IllegalStateException(
+                    "Student '" + student.getUsername() + "' is already assigned to team '" +
+                    existingTeams.get(0).getName() + "'. Remove them first.");
+        }
         team.getStudents().add(student);
         return TeamDto.from(teamRepository.save(team));
     }
@@ -114,6 +120,10 @@ public class TeamService {
     public TeamDto removeInstructor(Long teamId, Long instructorId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));
+        if (team.getInstructors().size() <= 1) {
+            throw new IllegalStateException(
+                    "Cannot remove the last instructor from a team (BR-1). Assign another instructor first.");
+        }
         team.getInstructors().removeIf(u -> u.getId().equals(instructorId));
         return TeamDto.from(teamRepository.save(team));
     }

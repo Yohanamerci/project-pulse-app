@@ -3,36 +3,48 @@ package edu.tcu.cs.projectpulse.auth;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.tcu.cs.projectpulse.auth.dto.LoginRequest;
 import edu.tcu.cs.projectpulse.auth.dto.LoginResponse;
-import edu.tcu.cs.projectpulse.shared.Result;
+import edu.tcu.cs.projectpulse.shared.GlobalExceptionHandler;
 import edu.tcu.cs.projectpulse.shared.StatusCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.context.annotation.Import;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import edu.tcu.cs.projectpulse.shared.GlobalExceptionHandler;
-import edu.tcu.cs.projectpulse.system.SecurityConfig;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)
+/**
+ * Standalone MockMvc test — no Spring context, no DB, no JWT config needed.
+ * Uses Mockito to stub AuthService and MockMvcBuilders.standaloneSetup() to
+ * wire the controller + GlobalExceptionHandler directly.
+ */
+@ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
-    @Autowired
     MockMvc mockMvc;
+    final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Autowired
-    ObjectMapper objectMapper;
-
-    @MockitoBean
+    @Mock
     AuthService authService;
+
+    @InjectMocks
+    AuthController authController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(authController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
 
     @Test
     void login_withValidCredentials_returns200AndToken() throws Exception {

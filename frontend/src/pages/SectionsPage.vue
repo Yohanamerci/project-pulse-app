@@ -303,28 +303,36 @@ onMounted(loadSections)
 
         <template #item.actions="{ item }">
           <v-btn
-            icon="mdi-pencil"
-            variant="text"
+            prepend-icon="mdi-pencil"
+            variant="tonal"
             size="small"
             color="warning"
+            class="mr-1"
             @click="openEditDialog(item)"
-          />
+          >
+            Edit
+          </v-btn>
           <v-btn
-            icon="mdi-calendar-edit"
-            variant="text"
+            prepend-icon="mdi-calendar-edit"
+            variant="tonal"
             size="small"
             color="info"
+            class="mr-1"
             @click="openWeekDialog(item)"
-          />
+          >
+            Weeks
+          </v-btn>
           <v-btn
             v-if="authStore.isAdmin"
-            icon="mdi-delete-outline"
-            variant="text"
+            prepend-icon="mdi-delete"
+            variant="tonal"
             size="small"
             color="error"
             :loading="deletingSectionId === item.id"
             @click="handleDeleteSection(item)"
-          />
+          >
+            Delete
+          </v-btn>
         </template>
       </v-data-table>
     </v-card>

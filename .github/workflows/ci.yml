@@ -41,7 +41,7 @@ jobs:
       # Compile + package the JAR without running tests first
       # (catches compilation errors quickly before spending time on tests)
       - name: Compile & package
-        run: ./mvnw -B package -DskipTests
+        run: ./mvnw -B package -Dmaven.test.skip=true
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-placeholder-secret-key-min-32-characters!!' }}
 

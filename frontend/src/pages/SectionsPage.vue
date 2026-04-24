@@ -47,11 +47,13 @@ const headers = [
 const defaultSort = [{ key: 'name', order: 'desc' as const }]
 
 // Tracks expanded row IDs and lazily loaded team data
-const expandedIds = ref<number[]>([])
+// Vuetify v-model:expanded requires string[] (item-value keys serialised as strings)
+const expandedIds = ref<string[]>([])
 const sectionTeams = ref<Record<number, TeamDto[] | null>>({})
 
-async function onExpandedChange(newExpanded: number[]) {
-  for (const id of newExpanded) {
+async function onExpandedChange(newExpanded: string[]) {
+  for (const idStr of newExpanded) {
+    const id = Number(idStr)
     if (sectionTeams.value[id] !== undefined) continue
     sectionTeams.value[id] = null // mark as loading
     try {

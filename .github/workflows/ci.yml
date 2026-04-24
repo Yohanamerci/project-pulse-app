@@ -1,0 +1,91 @@
+name: CI
+
+# Trigger on every pull request (any base branch) and on pushes to main
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+# Cancel any in-progress run for the same branch/PR when a new commit arrives
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ──────────────────────────────────────────────────────────────────────
+  #  Backend — compile, package, run tests
+  #  Uses @WebMvcTest (no real DB needed for current test suite)
+  # ──────────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend — Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      # Compile + package the JAR without running tests first
+      # (catches compilation errors quickly before spending time on tests)
+      - name: Compile & package
+        run: ./mvnw -B package -Dmaven.test.skip=true
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-placeholder-secret-key-min-32-characters!!' }}
+
+      # Run the test suite separately so test results are clearly reported
+      - name: Run tests
+        run: ./mvnw -B test
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-placeholder-secret-key-min-32-characters!!' }}
+
+      # Always upload Surefire XML reports so GitHub/Actions can show results
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────
+  #  Frontend — TypeScript type-check + Vite production build
+  #  `npm run build` = vue-tsc && vite build (type-check is included)
+  # ──────────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend — Type-check & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          # path is relative to repo root, not working-directory
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # vue-tsc type-checks first, then vite builds — any TS error fails the job
+      - name: Build
+        run: npm run build

@@ -47,11 +47,13 @@ const headers = [
 const defaultSort = [{ key: 'name', order: 'desc' as const }]
 
 // Tracks expanded row IDs and lazily loaded team data
-const expandedIds = ref<number[]>([])
+// Vuetify v-model:expanded requires string[] (item-value keys serialised as strings)
+const expandedIds = ref<string[]>([])
 const sectionTeams = ref<Record<number, TeamDto[] | null>>({})
 
-async function onExpandedChange(newExpanded: number[]) {
-  for (const id of newExpanded) {
+async function onExpandedChange(newExpanded: string[]) {
+  for (const idStr of newExpanded) {
+    const id = Number(idStr)
     if (sectionTeams.value[id] !== undefined) continue
     sectionTeams.value[id] = null // mark as loading
     try {
@@ -267,27 +269,27 @@ onMounted(loadSections)
 <template>
   <v-container fluid class="pa-6">
     <!-- Header -->
-    <v-row align="center" class="mb-6">
-      <v-col>
-        <div class="d-flex align-center ga-3">
-          <v-avatar color="warning" variant="tonal" size="48" rounded="lg">
-            <v-icon icon="mdi-school" size="28" />
-          </v-avatar>
+    <div class="pp-page-hero mb-6">
+      <div class="pp-page-hero-grid" />
+      <div class="pp-page-hero-glow" style="background:radial-gradient(ellipse,rgba(252,211,77,0.22) 0%,transparent 70%)" />
+      <div class="d-flex align-center justify-space-between flex-wrap gap-3 position-relative" style="z-index:1">
+        <div class="d-flex align-center ga-4">
+          <div class="pp-page-hero-icon" style="background:linear-gradient(135deg,#FCD34D,#F59E0B)">
+            <v-icon icon="mdi-school" size="28" color="white" />
+          </div>
           <div>
-            <h1 class="text-h5 font-weight-bold">Sections</h1>
-            <p class="text-body-2 text-medium-emphasis mb-0">
+            <h1 class="text-h5 font-weight-bold text-white mb-0">Sections</h1>
+            <p class="text-body-2 mb-0" style="color:rgba(255,255,255,0.65)">
               <template v-if="authStore.isAdmin">Manage course sections and control the active submission week</template>
               <template v-else>Create and edit sections, set active submission weeks</template>
             </p>
           </div>
         </div>
-      </v-col>
-      <v-col cols="auto">
-        <v-btn color="warning" prepend-icon="mdi-plus" @click="openCreateDialog">
+        <v-btn color="warning" variant="elevated" prepend-icon="mdi-plus" @click="openCreateDialog">
           Create Section
         </v-btn>
-      </v-col>
-    </v-row>
+      </div>
+    </div>
 
     <!-- BR-2 Alert -->
     <v-alert

@@ -36,8 +36,8 @@ export default createVuetify({
           warning:    '#FCD34D',   // Amber-300
           info:       '#38BDF8',   // Sky-400
           success:    '#34D399',   // Emerald-400
-          surface:    '#1E293B',   // Slate-800  — cards / dialogs
-          background: '#0F172A',   // Slate-900  — page bg
+          surface:    '#0D1829',   // Deep navy — cards / dialogs
+          background: '#050B18',   // Deep space — page bg (matches login)
         },
       },
     },

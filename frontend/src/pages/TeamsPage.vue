@@ -327,28 +327,28 @@ onMounted(async () => {
 <template>
   <v-container fluid class="pa-6">
     <!-- Header -->
-    <v-row align="center" class="mb-6">
-      <v-col>
-        <div class="d-flex align-center ga-3">
-          <v-avatar color="info" variant="tonal" size="48" rounded="lg">
-            <v-icon icon="mdi-account-multiple" size="28" />
-          </v-avatar>
+    <div class="pp-page-hero mb-6">
+      <div class="pp-page-hero-grid" />
+      <div class="pp-page-hero-glow" style="background:radial-gradient(ellipse,rgba(56,189,248,0.24) 0%,transparent 70%)" />
+      <div class="d-flex align-center justify-space-between flex-wrap gap-3 position-relative" style="z-index:1">
+        <div class="d-flex align-center ga-4">
+          <div class="pp-page-hero-icon" style="background:linear-gradient(135deg,#38BDF8,#0EA5E9)">
+            <v-icon icon="mdi-account-multiple" size="28" color="white" />
+          </div>
           <div>
-            <h1 class="text-h5 font-weight-bold">Teams</h1>
-            <p class="text-body-2 text-medium-emphasis mb-0">
+            <h1 class="text-h5 font-weight-bold text-white mb-0">Teams</h1>
+            <p class="text-body-2 mb-0" style="color:rgba(255,255,255,0.65)">
               <span v-if="authStore.isAdmin">Create teams, assign instructors and students</span>
               <span v-else-if="authStore.isInstructor">Create and manage teams, add or move students</span>
               <span v-else>View your team and teammates</span>
             </p>
           </div>
         </div>
-      </v-col>
-      <v-col v-if="authStore.isAdmin || authStore.isInstructor" cols="auto">
-        <v-btn color="info" prepend-icon="mdi-plus" @click="openCreateDialog">
+        <v-btn v-if="authStore.isAdmin || authStore.isInstructor" color="info" variant="elevated" prepend-icon="mdi-plus" @click="openCreateDialog">
           Create Team
         </v-btn>
-      </v-col>
-    </v-row>
+      </div>
+    </div>
 
     <!-- Error Alert -->
     <v-alert

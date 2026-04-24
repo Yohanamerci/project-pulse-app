@@ -214,27 +214,27 @@ onMounted(loadAll)
 <template>
   <v-container fluid class="pa-6">
     <!-- Header -->
-    <v-row align="center" class="mb-6">
-      <v-col>
-        <div class="d-flex align-center ga-3">
-          <v-avatar color="purple" variant="tonal" size="48" rounded="lg">
-            <v-icon icon="mdi-clipboard-list" size="28" />
-          </v-avatar>
+    <div class="pp-page-hero mb-6">
+      <div class="pp-page-hero-grid" />
+      <div class="pp-page-hero-glow" style="background:radial-gradient(ellipse,rgba(167,139,250,0.26) 0%,transparent 70%)" />
+      <div class="d-flex align-center justify-space-between flex-wrap gap-3 position-relative" style="z-index:1">
+        <div class="d-flex align-center ga-4">
+          <div class="pp-page-hero-icon" style="background:linear-gradient(135deg,#A78BFA,#7C3AED)">
+            <v-icon icon="mdi-clipboard-list" size="28" color="white" />
+          </div>
           <div>
-            <h1 class="text-h5 font-weight-bold">Rubrics</h1>
-            <p class="text-body-2 text-medium-emphasis mb-0">
+            <h1 class="text-h5 font-weight-bold text-white mb-0">Rubrics</h1>
+            <p class="text-body-2 mb-0" style="color:rgba(255,255,255,0.65)">
               <template v-if="authStore.isAdmin">Create and manage peer evaluation rubrics and scoring criteria</template>
               <template v-else>Manage scoring criteria within existing rubrics</template>
             </p>
           </div>
         </div>
-      </v-col>
-      <v-col v-if="authStore.isAdmin" cols="auto">
-        <v-btn color="purple" prepend-icon="mdi-plus" @click="openCreateDialog">
+        <v-btn v-if="authStore.isAdmin" color="purple" variant="elevated" prepend-icon="mdi-plus" @click="openCreateDialog">
           Create Rubric
         </v-btn>
-      </v-col>
-    </v-row>
+      </div>
+    </div>
 
     <!-- Error Alert -->
     <v-alert

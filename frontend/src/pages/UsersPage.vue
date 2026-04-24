@@ -211,27 +211,27 @@ onMounted(loadUsers)
 <template>
   <v-container fluid class="pa-6">
     <!-- Header -->
-    <v-row align="center" class="mb-6">
-      <v-col>
-        <div class="d-flex align-center ga-3">
-          <v-avatar color="error" variant="tonal" size="48" rounded="lg">
-            <v-icon icon="mdi-account-cog" size="28" />
-          </v-avatar>
+    <div class="pp-page-hero mb-6">
+      <div class="pp-page-hero-grid" />
+      <div class="pp-page-hero-glow" style="background:radial-gradient(ellipse,rgba(248,113,113,0.22) 0%,transparent 70%)" />
+      <div class="d-flex align-center justify-space-between flex-wrap gap-3 position-relative" style="z-index:1">
+        <div class="d-flex align-center ga-4">
+          <div class="pp-page-hero-icon" style="background:linear-gradient(135deg,#F87171,#DC2626)">
+            <v-icon icon="mdi-account-cog" size="28" color="white" />
+          </div>
           <div>
-            <h1 class="text-h5 font-weight-bold">Users</h1>
-            <p class="text-body-2 text-medium-emphasis mb-0">
+            <h1 class="text-h5 font-weight-bold text-white mb-0">Users</h1>
+            <p class="text-body-2 mb-0" style="color:rgba(255,255,255,0.65)">
               <template v-if="authStore.isAdmin">Create and manage instructor and student accounts</template>
-              <template v-else>Find and view students and instructors (UC-15, UC-16)</template>
+              <template v-else>Find and view students and instructors</template>
             </p>
           </div>
         </div>
-      </v-col>
-      <v-col v-if="authStore.isAdmin" cols="auto">
-        <v-btn color="error" prepend-icon="mdi-account-plus" @click="openAddDialog">
+        <v-btn v-if="authStore.isAdmin" color="error" variant="elevated" prepend-icon="mdi-account-plus" @click="openAddDialog">
           Add User
         </v-btn>
-      </v-col>
-    </v-row>
+      </div>
+    </div>
 
     <!-- Error Alert -->
     <v-alert

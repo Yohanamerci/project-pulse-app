@@ -2,41 +2,29 @@
   <v-container class="pa-6">
 
     <!-- ── Hero welcome banner ── -->
-    <v-sheet
-      rounded="xl"
-      class="pa-8 mb-8 overflow-hidden position-relative"
-      style="background: linear-gradient(135deg, #1D4ED8 0%, #4F46E5 100%)"
-    >
-      <!-- Decorative circles -->
-      <div
-        class="position-absolute"
-        style="right: -80px; top: -80px; width: 280px; height: 280px;
-               border-radius: 50%; background: rgba(255,255,255,0.05); pointer-events: none"
-      />
-      <div
-        class="position-absolute"
-        style="right: 80px; bottom: -100px; width: 180px; height: 180px;
-               border-radius: 50%; background: rgba(255,255,255,0.04); pointer-events: none"
-      />
+    <div class="pp-page-hero mb-8 pa-8">
+      <div class="pp-page-hero-grid" />
+      <div class="position-absolute" style="width:340px;height:340px;right:-80px;top:-80px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.14) 0%,rgba(124,58,237,0.10) 50%,transparent 70%);pointer-events:none" />
+      <div class="position-absolute" style="width:200px;height:200px;left:40%;bottom:-60px;border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,0.10) 0%,transparent 65%);pointer-events:none" />
 
-      <div class="position-relative">
-        <h1 class="text-h4 font-weight-bold text-white mb-2">
-          Welcome back, {{ authStore.userInfo?.username }}
+      <div class="position-relative" style="z-index:1">
+        <p class="text-caption mb-1" style="color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase">
+          Project Pulse
+        </p>
+        <h1 class="text-h4 font-weight-bold mb-2" style="color:#fff;letter-spacing:-0.5px">
+          Welcome back,
+          <span style="background:linear-gradient(90deg,#00D4FF,#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            {{ authStore.userInfo?.username }}
+          </span>
         </h1>
         <div class="d-flex align-center ga-2">
-          <span class="text-body-1" style="color: rgba(255,255,255,0.7)">Signed in as</span>
-          <v-chip
-            :color="roleColor"
-            size="small"
-            label
-            variant="elevated"
-            class="font-weight-medium"
-          >
+          <span class="text-body-2" style="color:rgba(255,255,255,0.55)">Signed in as</span>
+          <v-chip :color="roleColor" size="small" label variant="elevated" class="font-weight-bold">
             {{ authStore.userInfo?.role }}
           </v-chip>
         </div>
       </div>
-    </v-sheet>
+    </div>
 
     <!-- ── Quick-nav cards ── -->
     <v-row>
@@ -55,11 +43,6 @@
           class="h-100 cursor-pointer"
           @click="router.push(card.route)"
         >
-          <!-- Colored accent top bar -->
-          <div
-            class="rounded-t-xl"
-            :style="`height: 3px; background: rgb(var(--v-theme-${card.color}))`"
-          />
           <v-card-text class="d-flex align-start pa-6 ga-4">
             <v-avatar :color="card.color" variant="tonal" size="52" rounded="xl">
               <v-icon :icon="card.icon" size="26" />

@@ -81,25 +81,27 @@ onMounted(async () => {
 
     <template v-else-if="student">
       <!-- Header -->
-      <v-row align="center" class="mb-6">
-        <v-col>
-          <div class="d-flex align-center ga-3">
-            <v-avatar color="primary" variant="tonal" size="64" rounded="lg">
-              <v-icon icon="mdi-account" size="36" />
-            </v-avatar>
+      <div class="pp-page-hero mb-6">
+        <div class="pp-page-hero-grid" />
+        <div class="pp-page-hero-glow" style="background:radial-gradient(ellipse,rgba(96,165,250,0.22) 0%,transparent 70%)" />
+        <div class="d-flex align-center position-relative" style="z-index:1">
+          <div class="d-flex align-center ga-4">
+            <div class="pp-page-hero-icon" style="background:linear-gradient(135deg,#60A5FA,#3B82F6);width:60px!important;height:60px!important;min-width:60px!important;border-radius:16px!important">
+              <v-icon icon="mdi-account" size="32" color="white" />
+            </div>
             <div>
-              <h1 class="text-h5 font-weight-bold">
+              <h1 class="text-h5 font-weight-bold text-white mb-0">
                 {{ student.firstName }} {{ student.lastName }}
               </h1>
-              <p class="text-body-2 text-medium-emphasis mb-0">
+              <p class="text-body-2 mb-0" style="color:rgba(255,255,255,0.65)">
                 @{{ student.username }} ·
                 <span v-if="team">{{ team.name }}</span>
                 <span v-else>No team assigned</span>
               </p>
             </div>
           </div>
-        </v-col>
-      </v-row>
+        </div>
+      </div>
 
       <!-- Summary cards -->
       <v-row class="mb-6">

@@ -13,14 +13,31 @@ export default createVuetify({
     defaultTheme: 'light',
     themes: {
       light: {
+        dark: false,
         colors: {
-          primary: '#1565C0',   // Deep Blue — TCU purple would also work here
-          secondary: '#42A5F5',
-          accent: '#FFC107',
-          error: '#D32F2F',
-          warning: '#F57C00',
-          info: '#0288D1',
-          success: '#388E3C',
+          primary:    '#1D4ED8',
+          secondary:  '#4F46E5',
+          accent:     '#F59E0B',
+          error:      '#DC2626',
+          warning:    '#D97706',
+          info:       '#0284C7',
+          success:    '#059669',
+          surface:    '#FFFFFF',
+          background: '#F1F5F9',
+        },
+      },
+      dark: {
+        dark: true,
+        colors: {
+          primary:    '#60A5FA',   // Blue-400  — pops on dark bg
+          secondary:  '#818CF8',   // Indigo-400
+          accent:     '#FCD34D',   // Amber-300
+          error:      '#F87171',   // Red-400
+          warning:    '#FCD34D',   // Amber-300
+          info:       '#38BDF8',   // Sky-400
+          success:    '#34D399',   // Emerald-400
+          surface:    '#1E293B',   // Slate-800  — cards / dialogs
+          background: '#0F172A',   // Slate-900  — page bg
         },
       },
     },

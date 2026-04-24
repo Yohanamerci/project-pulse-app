@@ -14,17 +14,12 @@ concurrency:
   cancel-in-progress: false
 
 # ── Required GitHub Secrets ────────────────────────────────────────────────
-# AZURE_CREDENTIALS               Service-principal JSON  (az ad sp create-for-rbac)
-# AZURE_WEBAPP_NAME               App Service name        e.g. project-pulse-api
+# AZURE_PUBLISH_PROFILE           Publish profile XML from: az webapp deployment list-publishing-profiles
+# AZURE_WEBAPP_NAME               App Service name        e.g. project-pulse-app
 # AZURE_STATIC_WEB_APPS_API_TOKEN Deployment token from Azure Static Web Apps resource
-# DB_URL                          jdbc:mysql://host:3306/project_pulse?useSSL=true&serverTimezone=UTC
-# DB_USERNAME                     Production DB user
-# DB_PASSWORD                     Production DB password
-# JWT_SECRET_KEY                  256-bit+ random secret
-# MAIL_HOST / MAIL_PORT           SMTP host and port
-# MAIL_USERNAME / MAIL_PASSWORD   SMTP credentials
-# VITE_API_BASE_URL               Full backend URL e.g. https://project-pulse-api.azurewebsites.net
-# CORS_ALLOWED_ORIGINS            Comma-separated list e.g. https://project-pulse.azurestaticapps.net
+# VITE_API_BASE_URL               Full backend URL e.g. https://project-pulse-app.azurewebsites.net
+# NOTE: DB_URL, JWT_SECRET_KEY, CORS_ALLOWED_ORIGINS, etc. are set manually
+#       in Azure Portal → App Service → Configuration → Application settings
 # ──────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -55,42 +50,16 @@ jobs:
         run: chmod +x mvnw
 
       # Build production JAR — tests already passed in CI
+      # App settings (DB, JWT, CORS, etc.) are pre-configured in Azure Portal
       - name: Build JAR
         run: ./mvnw -B package -Dmaven.test.skip=true
-        env:
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
 
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # Push all environment variables to App Service settings
-      # Azure App Service Java runtime must be set to Java 21 (SE) in the portal
-      - name: Configure App Service settings
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          app-settings-json: |
-            [
-              { "name": "DB_URL",               "value": "${{ secrets.DB_URL }}",               "slotSetting": false },
-              { "name": "DB_USERNAME",           "value": "${{ secrets.DB_USERNAME }}",           "slotSetting": false },
-              { "name": "DB_PASSWORD",           "value": "${{ secrets.DB_PASSWORD }}",           "slotSetting": false },
-              { "name": "JWT_SECRET_KEY",        "value": "${{ secrets.JWT_SECRET_KEY }}",        "slotSetting": false },
-              { "name": "MAIL_HOST",             "value": "${{ secrets.MAIL_HOST }}",             "slotSetting": false },
-              { "name": "MAIL_PORT",             "value": "${{ secrets.MAIL_PORT }}",             "slotSetting": false },
-              { "name": "MAIL_USERNAME",         "value": "${{ secrets.MAIL_USERNAME }}",         "slotSetting": false },
-              { "name": "MAIL_PASSWORD",         "value": "${{ secrets.MAIL_PASSWORD }}",         "slotSetting": false },
-              { "name": "CORS_ALLOWED_ORIGINS",  "value": "${{ secrets.CORS_ALLOWED_ORIGINS }}",  "slotSetting": false },
-              { "name": "FRONTEND_BASE_URL",     "value": "${{ secrets.VITE_API_BASE_URL }}",     "slotSetting": false },
-              { "name": "SPRING_PROFILES_ACTIVE","value": "prod",                                 "slotSetting": false }
-            ]
-
-      # Deploy the JAR — App Service restarts automatically
+      # Deploy the JAR using publish profile — no service principal required
       - name: Deploy JAR to App Service
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           package: backend/target/*.jar
 
   # ──────────────────────────────────────────────────────────────────────────

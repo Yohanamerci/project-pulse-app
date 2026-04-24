@@ -100,10 +100,13 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    @Value("${app.cors.allowed-origins:http://localhost:5173,https://*.azurewebsites.net,https://*.azurestaticapps.net}")
+    private String corsAllowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:5173", "https://*.azurewebsites.net"));
+        config.setAllowedOriginPatterns(List.of(corsAllowedOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

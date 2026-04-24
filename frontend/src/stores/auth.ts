@@ -29,6 +29,14 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
   }
 
+  /** Used after registration to persist the session without a separate login call. */
+  function setSession(jwt: string, info: UserInfo) {
+    token.value = jwt
+    userInfo.value = info
+    localStorage.setItem('token', jwt)
+    localStorage.setItem('userInfo', JSON.stringify(info))
+  }
+
   function logout() {
     token.value = null
     userInfo.value = null
@@ -36,5 +44,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('userInfo')
   }
 
-  return { token, userInfo, isLoggedIn, isAdmin, isInstructor, isStudent, login, logout }
+  return { token, userInfo, isLoggedIn, isAdmin, isInstructor, isStudent, login, setSession, logout }
 })

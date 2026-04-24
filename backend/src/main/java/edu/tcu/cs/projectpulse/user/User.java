@@ -22,6 +22,9 @@ public class User {
     @Column(name = "first_name", nullable = false, length = 80)
     private String firstName;
 
+    @Column(name = "middle_initial", length = 1)
+    private String middleInitial;
+
     @Column(name = "last_name", nullable = false, length = 80)
     private String lastName;
 
@@ -48,6 +51,9 @@ public class User {
 
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleInitial() { return middleInitial; }
+    public void setMiddleInitial(String middleInitial) { this.middleInitial = middleInitial; }
 
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }

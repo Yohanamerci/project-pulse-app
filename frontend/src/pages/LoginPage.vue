@@ -54,6 +54,23 @@
                 Sign In
               </v-btn>
             </v-form>
+
+            <v-divider class="my-4" />
+
+            <div class="text-center">
+              <p class="text-body-2 text-medium-emphasis mb-2">
+                Instructor? Received an invitation email?
+              </p>
+              <v-btn
+                variant="tonal"
+                color="primary"
+                size="small"
+                prepend-icon="mdi-account-plus"
+                @click="router.push('/register')"
+              >
+                Register with Invitation Token
+              </v-btn>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>

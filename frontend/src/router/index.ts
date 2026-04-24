@@ -10,6 +10,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/pages/RegisterPage.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },
@@ -84,6 +90,10 @@ router.beforeEach((to) => {
   }
   if (to.name === 'login' && isLoggedIn) {
     return { name: 'dashboard' }
+  }
+  // /register is always accessible — invitation links should work regardless of login state
+  if (to.name === 'register') {
+    return
   }
 })
 

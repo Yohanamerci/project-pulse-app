@@ -5,6 +5,7 @@ public record UserDto(
         String username,
         String email,
         String firstName,
+        String middleInitial,
         String lastName,
         String role,
         boolean enabled
@@ -15,6 +16,7 @@ public record UserDto(
                 user.getUsername(),
                 user.getEmail(),
                 user.getFirstName(),
+                user.getMiddleInitial(),
                 user.getLastName(),
                 user.getRole().name(),
                 user.isEnabled()

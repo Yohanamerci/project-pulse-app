@@ -7,6 +7,7 @@ export interface SectionDto {
   year: number
   teamCount: number
   activeWeekCount: number
+  teamNames: string[]   // UC-2: included in search results display
 }
 
 export interface ActiveWeekDto {

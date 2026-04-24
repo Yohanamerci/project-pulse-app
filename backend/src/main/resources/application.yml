@@ -36,6 +36,9 @@ server:
   error:
     include-message: always
 
+app:
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+
 logging:
   level:
     edu.tcu.cs.projectpulse: INFO

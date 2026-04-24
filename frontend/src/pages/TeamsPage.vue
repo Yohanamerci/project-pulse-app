@@ -490,13 +490,15 @@ onMounted(async () => {
             </v-card-text>
             <v-card-actions>
               <v-btn
-                icon="mdi-delete-outline"
-                variant="text"
+                prepend-icon="mdi-delete"
+                variant="tonal"
                 size="small"
                 color="error"
                 :loading="deletingTeamId === team.id"
                 @click="handleDeleteTeam(team)"
-              />
+              >
+                Delete
+              </v-btn>
               <v-spacer />
               <v-btn
                 color="info"

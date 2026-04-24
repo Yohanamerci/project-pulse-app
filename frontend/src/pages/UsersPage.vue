@@ -297,38 +297,48 @@ onMounted(loadUsers)
         <template #item.actions="{ item }">
           <v-btn
             v-if="item.role === 'STUDENT' || item.role === 'INSTRUCTOR'"
-            icon="mdi-eye"
-            variant="text"
+            prepend-icon="mdi-eye"
+            variant="tonal"
             size="small"
             color="secondary"
+            class="mr-1"
             @click="openViewDialog(item)"
-          />
+          >
+            View
+          </v-btn>
           <!-- Instructor: edit students only -->
           <v-btn
             v-if="authStore.isInstructor && item.role === 'STUDENT'"
-            icon="mdi-pencil"
-            variant="text"
+            prepend-icon="mdi-pencil"
+            variant="tonal"
             size="small"
             color="primary"
             @click="openEditDialog(item)"
-          />
+          >
+            Edit
+          </v-btn>
           <template v-if="authStore.isAdmin">
             <v-btn
-              icon="mdi-pencil"
-              variant="text"
+              prepend-icon="mdi-pencil"
+              variant="tonal"
               size="small"
               color="primary"
+              class="mr-1"
               @click="openEditDialog(item)"
-            />
+            >
+              Edit
+            </v-btn>
             <v-btn
               v-if="item.role !== 'ADMIN'"
-              icon="mdi-delete-outline"
-              variant="text"
+              prepend-icon="mdi-delete-outline"
+              variant="tonal"
               size="small"
               :color="item.role === 'STUDENT' ? 'error' : 'warning'"
               :loading="deletingUserId === item.id"
               @click="handleDeleteUser(item)"
-            />
+            >
+              {{ item.role === 'STUDENT' ? 'Delete' : 'Disable' }}
+            </v-btn>
           </template>
         </template>
       </v-data-table>

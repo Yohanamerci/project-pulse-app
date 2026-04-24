@@ -216,6 +216,10 @@ project-pulse-app/
 | # | Area | Task | Notes |
 |---|------|------|-------|
 | 13 | **Both** | Azure deployment | Add `.github/workflows/deploy.yml`. Configure GitHub secrets: `AZURE_CREDENTIALS`, `DB_URL`, `DB_PASSWORD`, `JWT_SECRET_KEY` |
+| ✅ UC-3 | **Frontend** | ~~Section page buttons made visible~~ | Edit, Weeks, Delete action buttons in `SectionsPage.vue` changed from icon-only to labeled `v-btn` with `prepend-icon` + text |
+| ✅ UC-14 | **Frontend** | ~~Delete team button signifier added~~ | Delete button on team cards in `TeamsPage.vue` changed to red `variant="tonal"` button with trash icon and "Delete" label |
+| ✅ UC-16 | **Frontend** | ~~Student detail view buttons made visible~~ | View button (eye icon) in `UsersPage.vue` table changed to labeled "View" button with `prepend-icon` |
+| ✅ UC-21 | **Frontend** | ~~Users page action buttons made visible~~ | Edit and Delete/Disable icon-only buttons in `UsersPage.vue` table changed to labeled buttons with icons and text |
 
 ### Completed Use Cases (numerical order)
 

@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+// In production VITE_API_BASE_URL = 'https://your-app.azurewebsites.net'
+// In development it is empty so Vite's proxy handles /api/v1/*
 const request = axios.create({
-  baseURL: '/api/v1',
+  baseURL: (import.meta.env.VITE_API_BASE_URL ?? '') + '/api/v1',
   timeout: 10000,
 })
 
